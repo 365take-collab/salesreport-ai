@@ -33,16 +33,21 @@ export async function POST(req: NextRequest) {
 
     const usageCount = await getUsageCount(email);
 
-    // Utage Webhook連携（オプション）
-    if (process.env.UTAGE_WEBHOOK_URL && result.isNew) {
+    // Utage フォーム連携（新規登録時のみ）
+    if (result.isNew) {
       try {
-        await fetch(process.env.UTAGE_WEBHOOK_URL, {
+        const utageFormUrl = 'https://utage-system.com/r/SH7RQHstnrbE/store';
+        const formData = new URLSearchParams();
+        formData.append('mail', email);
+        
+        await fetch(utageFormUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, source: 'salesreport-ai' }),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
         });
       } catch (webhookError) {
-        console.error('Utage webhook error:', webhookError);
+        console.error('Utage form submission error:', webhookError);
+        // Utage送信失敗してもアプリは続行
       }
     }
 

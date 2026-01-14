@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     // Supabaseにユーザー情報を保存/更新
     const { data, error } = await supabase
-      .from('users')
+      .from('salesreport_users')
       .upsert({
         email,
         name,

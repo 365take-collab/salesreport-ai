@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     // Supabaseでユーザーのプランをfreeに戻す
     const { data, error } = await supabase
-      .from('users')
+      .from('salesreport_users')
       .update({
         plan: 'free',
         status: 'cancelled',

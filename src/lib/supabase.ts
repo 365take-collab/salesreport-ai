@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // ユーザーの使用回数を取得
 export async function getUsageCount(email: string): Promise<number> {
   const { data, error } = await supabase
-    .from('users')
+    .from('salesreport_users')
     .select('usage_count, last_reset')
     .eq('email', email)
     .single();
@@ -22,7 +22,7 @@ export async function getUsageCount(email: string): Promise<number> {
   const now = new Date();
   if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
     await supabase
-      .from('users')
+      .from('salesreport_users')
       .update({ usage_count: 0, last_reset: now.toISOString() })
       .eq('email', email);
     return 0;
@@ -36,7 +36,7 @@ export async function incrementUsage(email: string): Promise<{ success: boolean;
   const currentCount = await getUsageCount(email);
   
   const { error } = await supabase
-    .from('users')
+    .from('salesreport_users')
     .update({ usage_count: currentCount + 1 })
     .eq('email', email);
 
@@ -51,7 +51,7 @@ export async function incrementUsage(email: string): Promise<{ success: boolean;
 export async function registerUser(email: string): Promise<{ success: boolean; isNew: boolean }> {
   // 既存ユーザーをチェック
   const { data: existing } = await supabase
-    .from('users')
+    .from('salesreport_users')
     .select('email')
     .eq('email', email)
     .single();
@@ -62,7 +62,7 @@ export async function registerUser(email: string): Promise<{ success: boolean; i
 
   // 新規登録
   const { error } = await supabase
-    .from('users')
+    .from('salesreport_users')
     .insert({
       email,
       usage_count: 0,
