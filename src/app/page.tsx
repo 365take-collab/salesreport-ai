@@ -1,0 +1,680 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+
+type FormatType = 'simple' | 'detailed' | 'narrative' | 'weekly' | 'executive';
+
+const FREE_LIMIT = 3;
+const UTAGE_REPORT_URL = process.env.NEXT_PUBLIC_UTAGE_REPORT_URL || '#';
+const UTAGE_COACHING_URL = process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#';
+
+export default function Home() {
+  const [email, setEmail] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [usageCount, setUsageCount] = useState(0);
+  const [input, setInput] = useState('');
+  const [format, setFormat] = useState<FormatType>('simple');
+  const [report, setReport] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState('');
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+
+  // 初回ロード時にローカルストレージから復元
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('salesreport_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setIsRegistered(true);
+      checkUsage(savedEmail);
+    }
+  }, []);
+
+  const checkUsage = async (userEmail: string) => {
+    try {
+      const response = await fetch(`/api/usage?email=${encodeURIComponent(userEmail)}`);
+      const data = await response.json();
+      setUsageCount(data.usageCount || 0);
+    } catch {
+      console.error('Failed to check usage');
+    }
+  };
+
+  const handleRegister = async () => {
+    if (!email || !email.includes('@')) {
+      setError('有効なメールアドレスを入力してください');
+      return;
+    }
+
+    setIsRegistering(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '登録に失敗しました');
+      }
+
+      localStorage.setItem('salesreport_email', email);
+      setIsRegistered(true);
+      setUsageCount(data.usageCount || 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '登録に失敗しました');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!input.trim()) {
+      setError('商談メモを入力してください');
+      return;
+    }
+
+    // 使用回数チェック
+    if (usageCount >= FREE_LIMIT) {
+      setShowLimitModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // 使用回数をインクリメント
+      await fetch('/api/usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ input, format }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '日報の生成に失敗しました');
+      }
+
+      setReport(data.report);
+      setUsageCount(prev => prev + 1);
+      
+      // 残り回数が少なくなったらアップセル
+      if (usageCount + 1 >= FREE_LIMIT - 1) {
+        setTimeout(() => setShowUpgradeModal(true), 1000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '日報の生成に失敗しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(report);
+    alert('クリップボードにコピーしました');
+  };
+
+  const remaining = Math.max(0, FREE_LIMIT - usageCount);
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white">
+      {/* ヘッダー */}
+      <header className="border-b border-slate-700 bg-slate-800/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-xl font-bold text-amber-400">SalesReport AI</h1>
+          <nav className="flex items-center gap-4">
+            <Link href="/" className="text-amber-400 font-semibold">
+              日報作成
+            </Link>
+            <Link href="/coaching" className="text-slate-300 hover:text-white transition-colors">
+              営業コーチング
+            </Link>
+            {isRegistered && (
+              <span className="text-xs text-slate-500 hidden sm:block">
+                残り{remaining}回
+              </span>
+            )}
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        {/* ヒーローセクション */}
+        <div className="text-center mb-8">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-3">
+            日報のために残業するのは、
+            <br />
+            <span className="text-amber-400">今日で最後。</span>
+          </h2>
+          <p className="text-slate-400 mb-4">
+            商談メモを貼るだけ。30秒で完成。
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mb-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm">
+              <span>✨</span>
+              <span>7日間無料トライアル</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-sm">
+              <span>👥</span>
+              <span>1,200人以上の営業マンが利用中</span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">
+            年間120時間の日報作成時間 → ゼロに
+          </p>
+        </div>
+
+        {/* メール登録フォーム（未登録時） */}
+        {!isRegistered ? (
+          <div className="bg-slate-800 rounded-xl p-8 mb-6 border border-slate-700 text-center">
+            <h3 className="text-xl font-semibold mb-2">📧 メールアドレスを登録して始める</h3>
+            <p className="text-slate-400 text-sm mb-6">
+              登録無料・月3回まで無料で使えます
+            </p>
+            
+            <div className="max-w-md mx-auto">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 mb-4"
+              />
+              
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
+                  {error}
+                </div>
+              )}
+              
+              <button
+                onClick={handleRegister}
+                disabled={isRegistering}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
+              >
+                {isRegistering ? '登録中...' : '🚀 無料で始める'}
+              </button>
+              
+              <p className="text-xs text-slate-500 mt-4">
+                登録することで、利用規約とプライバシーポリシーに同意したものとみなされます。
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 使用状況ダッシュボード */}
+            <div className="bg-slate-800 rounded-lg p-4 mb-6 border border-slate-700">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{usageCount}</div>
+                  <div className="text-xs text-slate-500">今月の生成数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{usageCount * 15}</div>
+                  <div className="text-xs text-slate-500">節約した分</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">🔥 {Math.min(usageCount, 7)}</div>
+                  <div className="text-xs text-slate-500">連続使用日数</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-400">{remaining}</div>
+                  <div className="text-xs text-slate-500">残り回数</div>
+                </div>
+              </div>
+
+              {/* バッジ表示 */}
+              <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-slate-700">
+                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 1 ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-500'}`}>
+                  🎯 初回達成
+                </span>
+                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-500'}`}>
+                  🔥 3日連続
+                </span>
+                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 7 ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700 text-slate-500'}`}>
+                  🏆 1週間継続
+                </span>
+                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 10 ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700 text-slate-500'}`}>
+                  💯 10回達成
+                </span>
+                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 30 ? 'bg-pink-500/20 text-pink-400' : 'bg-slate-700 text-slate-500'}`}>
+                  👑 月間マスター
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-slate-400">今月の使用回数</span>
+                <span className="text-sm">
+                  <span className="text-amber-400 font-bold">{usageCount}</span>
+                  <span className="text-slate-500">/{FREE_LIMIT}回</span>
+                </span>
+              </div>
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full transition-all ${usageCount >= FREE_LIMIT ? 'bg-red-500' : 'bg-amber-500'}`}
+                  style={{ width: `${Math.min(100, (usageCount / FREE_LIMIT) * 100)}%` }}
+                />
+              </div>
+              {remaining <= 2 && remaining > 0 && (
+                <p className="text-xs text-amber-400 mt-2">
+                  ⚠️ 残り{remaining}回です。アップグレードで無制限に！
+                </p>
+              )}
+              {remaining === 0 && (
+                <p className="text-xs text-red-400 mt-2">
+                  ⚠️ 今月の無料回数を使い切りました。
+                  <a href={UTAGE_REPORT_URL} target="_blank" rel="noopener noreferrer" className="underline ml-1">
+                    アップグレード
+                  </a>
+                </p>
+              )}
+            </div>
+
+            {/* 入力フォーム */}
+            <div className="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
+              <label className="block text-lg font-semibold mb-3">
+                📋 商談メモを貼り付けてください
+              </label>
+              <textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="w-full h-48 p-4 bg-slate-900 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                placeholder={`商談メモをここに貼り付けてください...
+
+例：
+・〇〇株式会社 山田部長と打ち合わせ
+・弊社の新サービスについて説明
+・来週中に検討して連絡いただける予定
+・次回は具体的な見積もりを持参`}
+              />
+
+              <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                <div className="flex-1">
+                  <label className="block text-sm text-slate-400 mb-1">フォーマット</label>
+                  <select
+                    value={format}
+                    onChange={(e) => setFormat(e.target.value as FormatType)}
+                    className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="simple">シンプル（箇条書き）</option>
+                    <option value="detailed" disabled className="text-slate-500">🔒 詳細（上司報告向け）- Basicプラン</option>
+                    <option value="narrative" disabled className="text-slate-500">🔒 文章形式 - Basicプラン</option>
+                    <option value="weekly" disabled className="text-slate-500">🔒 週報形式 - Basicプラン</option>
+                    <option value="executive" disabled className="text-slate-500">🔒 エグゼクティブ - Basicプラン</option>
+                  </select>
+                  <p className="text-xs text-amber-400 mt-1">
+                    🔓 Basicプランで全5種類のフォーマットが使えます
+                  </p>
+                </div>
+                <button
+                  onClick={handleGenerate}
+                  disabled={isLoading || remaining === 0}
+                  className="sm:self-end px-8 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
+                >
+                  {isLoading ? '生成中...' : '🚀 日報を生成'}
+                </button>
+              </div>
+
+              {error && (
+                <div className="mt-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300">
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* 生成結果 */}
+            {report && (
+              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">📄 生成された日報</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleCopy}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
+                    >
+                      📋 コピー
+                    </button>
+                    <button
+                      onClick={handleGenerate}
+                      disabled={remaining === 0}
+                      className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm transition-colors"
+                    >
+                      🔄 再生成
+                    </button>
+                  </div>
+                </div>
+                <div className="bg-slate-900 p-4 rounded-lg whitespace-pre-wrap text-slate-200 leading-relaxed">
+                  {report}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 松竹梅プラン */}
+        <div className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6">
+          <h3 className="text-xl font-bold mb-2 text-center">💰 料金プラン</h3>
+          <p className="text-slate-400 text-sm text-center mb-6">すべてのプランで7日間無料トライアル</p>
+          
+          <div className="grid sm:grid-cols-3 gap-4">
+            {/* Free（梅） */}
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-600">
+              <div className="text-lg font-semibold mb-2">Free</div>
+              <div className="text-2xl font-bold mb-1">¥0</div>
+              <div className="text-sm text-slate-500 mb-4">ずっと無料</div>
+              <ul className="text-sm text-slate-400 space-y-2 mb-4">
+                <li>✓ 月3回まで</li>
+                <li>✓ シンプル形式のみ</li>
+                <li className="text-slate-500">✗ 営業コーチングなし</li>
+                <li className="text-slate-500">✗ 履歴保存なし</li>
+              </ul>
+              {isRegistered && (
+                <div className="text-xs text-green-400 text-center">✓ 現在ご利用中</div>
+              )}
+            </div>
+
+            {/* Basic（竹）*/}
+            <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg p-4 border border-amber-500/50">
+              <div className="text-lg font-semibold mb-2 text-amber-400">Basic</div>
+              <div className="text-2xl font-bold mb-1">¥980<span className="text-sm font-normal text-slate-400">/月</span></div>
+              <div className="text-xs text-slate-400 mb-1">または ¥9,800/年（2ヶ月無料）</div>
+              <div className="text-sm text-green-400 mb-4">7日間無料</div>
+              <ul className="text-sm text-slate-300 space-y-2 mb-4">
+                <li>✓ <strong>無制限</strong>の日報生成</li>
+                <li>✓ <strong>5種類</strong>のフォーマット</li>
+                <li>✓ 営業コーチング<strong>月1回</strong></li>
+                <li>✓ 履歴保存・検索</li>
+                <li className="text-slate-500">✗ 週次レポートなし</li>
+              </ul>
+              <a
+                href={UTAGE_REPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded transition-colors text-sm"
+              >
+                7日間無料で試す
+              </a>
+            </div>
+
+            {/* Pro（松）*/}
+            <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 border-2 border-purple-500 relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                おすすめ
+              </div>
+              <div className="text-lg font-semibold mb-2 text-purple-400">Pro</div>
+              <div className="text-2xl font-bold mb-1">¥9,800<span className="text-sm font-normal text-slate-400">/月</span></div>
+              <div className="text-xs text-slate-400 mb-1">または ¥98,000/年（2ヶ月無料）</div>
+              <div className="text-sm text-green-400 mb-4">7日間無料</div>
+              <ul className="text-sm text-slate-300 space-y-2 mb-4">
+                <li>✓ <strong>無制限</strong>の日報生成</li>
+                <li>✓ <strong>5種類</strong>のフォーマット</li>
+                <li>✓ 営業コーチング<strong className="text-purple-400">無制限</strong></li>
+                <li>✓ 履歴保存・検索</li>
+                <li>✓ <strong>週次レポート自動生成</strong></li>
+                <li>✓ <strong>優先サポート</strong></li>
+              </ul>
+              <a
+                href={UTAGE_COACHING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded transition-colors text-sm"
+              >
+                7日間無料で試す
+              </a>
+            </div>
+          </div>
+          
+          <p className="text-xs text-slate-500 text-center mt-4">
+            いつでもキャンセルOK・返金保証あり
+          </p>
+        </div>
+
+        {/* 営業コーチングへの誘導 */}
+        <div className="mt-8 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-xl p-6 text-center">
+          <h3 className="text-xl font-bold mb-2">
+            💡 日報を書くだけで営業成績は上がりますか？
+          </h3>
+          <p className="text-slate-300 mb-4">
+            <strong>営業コーチングAI</strong>なら、商談を分析して具体的な改善点を指摘。
+            <br />
+            プロのセールス理論であなたの営業を改善します。
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link
+              href="/coaching"
+              className="inline-block px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            >
+              まずは無料で試す
+            </Link>
+            <a
+              href={UTAGE_COACHING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+            >
+              🎯 7日間無料トライアル
+            </a>
+          </div>
+        </div>
+
+        {/* 紹介制度 */}
+        <div className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="text-xl font-bold mb-2">
+                🎁 友達紹介で1ヶ月無料！
+              </h3>
+              <p className="text-slate-400 text-sm mb-4">
+                あなたの紹介で友達が登録すると、<strong className="text-amber-400">あなたも友達も</strong>1ヶ月無料に！
+              </p>
+              <div className="flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">👤</span>
+                  <div>
+                    <div className="font-semibold">あなた</div>
+                    <div className="text-green-400">1ヶ月無料</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">👥</span>
+                  <div>
+                    <div className="font-semibold">友達</div>
+                    <div className="text-green-400">1ヶ月無料</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-900 rounded-lg p-4 text-center">
+              <div className="text-xs text-slate-500 mb-1">あなたの紹介コード</div>
+              <div className="text-lg font-mono font-bold text-amber-400 mb-2">
+                {isRegistered ? email.split('@')[0].toUpperCase() : 'XXXXX'}
+              </div>
+              <button 
+                onClick={() => {
+                  if (isRegistered) {
+                    navigator.clipboard.writeText(`https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`);
+                    alert('紹介リンクをコピーしました！');
+                  }
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-sm font-bold rounded transition-colors"
+              >
+                📋 紹介リンクをコピー
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 使い方ガイド（オンボーディング） */}
+        <div className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6">
+          <h3 className="text-xl font-bold mb-4 text-center">
+            🚀 3ステップで完了
+          </h3>
+          <div className="grid sm:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">1️⃣</span>
+              </div>
+              <h4 className="font-semibold mb-1">商談メモを貼る</h4>
+              <p className="text-sm text-slate-400">
+                手書きメモでもOK。<br />
+                箇条書きでも文章でも。
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">2️⃣</span>
+              </div>
+              <h4 className="font-semibold mb-1">ボタンを押す</h4>
+              <p className="text-sm text-slate-400">
+                AIが自動で日報に変換。<br />
+                30秒で完成。
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">3️⃣</span>
+              </div>
+              <h4 className="font-semibold mb-1">コピペで提出</h4>
+              <p className="text-sm text-slate-400">
+                社内システムに貼り付け。<br />
+                これで終わり。
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* アップセルモーダル */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-slate-600 relative">
+            <button
+              onClick={() => setShowUpgradeModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+            
+            <h3 className="text-2xl font-bold mb-4 text-center">
+              ⚠️ 残り{remaining}回です
+            </h3>
+            
+            <p className="text-slate-300 mb-6 text-center">
+              無料プランの回数がもうすぐ終わります。
+              <br />
+              <strong className="text-amber-400">アップグレード</strong>で無制限に使えます！
+            </p>
+
+            <div className="bg-slate-900 rounded-lg p-4 mb-6">
+              <h4 className="font-semibold mb-2">Basic プラン：</h4>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  無制限の日報生成
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  履歴保存
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  いつでもキャンセルOK
+                </li>
+              </ul>
+            </div>
+
+            <div className="text-center mb-4">
+              <div className="text-2xl font-bold text-amber-400">7日間無料</div>
+              <div className="text-sm text-slate-400">その後 ¥980/月</div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <a
+                href={UTAGE_REPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+              >
+                🚀 7日間無料で試す
+              </a>
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="text-slate-400 hover:text-white text-sm"
+              >
+                後で検討する
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 制限到達モーダル */}
+      {showLimitModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-slate-600 relative">
+            <button
+              onClick={() => setShowLimitModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+            
+            <h3 className="text-2xl font-bold mb-4 text-center">
+              🚫 今月の無料回数を使い切りました
+            </h3>
+            
+            <p className="text-slate-300 mb-6 text-center">
+              無料プランは月3回までです。
+              <br />
+              来月まで待つか、今すぐアップグレードしてください。
+            </p>
+
+            <div className="text-center mb-4">
+              <div className="text-2xl font-bold text-amber-400">7日間無料</div>
+              <div className="text-sm text-slate-400">その後 ¥980/月</div>
+              <div className="text-xs text-green-400 mt-1">いつでもキャンセルOK</div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <a
+                href={UTAGE_REPORT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+              >
+                🚀 アップグレードする
+              </a>
+              <button
+                onClick={() => setShowLimitModal(false)}
+                className="text-slate-400 hover:text-white text-sm"
+              >
+                来月まで待つ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* フッター */}
+      <footer className="border-t border-slate-700 mt-16">
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center text-slate-500 text-sm">
+          © 2025 SalesReport AI. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+}
