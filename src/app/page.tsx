@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 type FormatType = 'simple' | 'detailed' | 'bant' | 'report' | 'sales' | 'custom';
 
-const FREE_LIMIT = 3;
+const FREE_LIMIT = 9999; // 開発中は制限なし（本番は3に戻す）
 const UTAGE_REPORT_URL = process.env.NEXT_PUBLIC_UTAGE_REPORT_URL || '#';
 const UTAGE_COACHING_URL = process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#';
 

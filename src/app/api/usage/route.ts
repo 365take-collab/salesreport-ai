@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsageCount, incrementUsage } from '@/lib/supabase';
 
-const FREE_LIMIT = 3; // 無料プランの月間制限
+const FREE_LIMIT = 9999; // 開発中は制限なし（本番は3に戻す）
 
 // 使用回数を取得
 export async function GET(req: NextRequest) {
