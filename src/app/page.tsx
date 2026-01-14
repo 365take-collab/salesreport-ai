@@ -44,7 +44,9 @@ export default function Home() {
     if (savedEmail) {
       setEmail(savedEmail);
       setIsRegistered(true);
-      checkUsage(savedEmail);
+      // 開発モード: 使用回数チェックをスキップ（本番では有効にする）
+      // checkUsage(savedEmail);
+      setUsageCount(0); // 開発中は常に0
     }
     
     if (savedFormats) {
@@ -90,7 +92,8 @@ export default function Home() {
 
       localStorage.setItem('salesreport_email', email);
       setIsRegistered(true);
-      setUsageCount(data.usageCount || 0);
+      // 開発モード: 使用回数を常に0に（本番では data.usageCount || 0 に戻す）
+      setUsageCount(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {
