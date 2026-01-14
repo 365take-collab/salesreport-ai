@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// OpenAIクライアントを遅延初期化
+function getOpenAIClient() {
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not set');
+  }
+  return new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 const PROMPTS = {
   simple: `あなたは営業日報を作成するアシスタントです。
@@ -44,87 +50,155 @@ const PROMPTS = {
 
 詳しく、上司が状況を把握できるように書いてください。`,
 
-  narrative: `あなたは営業日報を作成するアシスタントです。
-以下の商談メモから、自然な文章形式の営業日報を作成してください。
-
-【形式】
-本日、〇〇株式会社の〇〇様と打ち合わせを行いました。
-
-（ここに商談の内容を自然な文章で記載）
-
-次回のアクションとして、〇〇を予定しています。
-
-読みやすい文章で、上司に報告するような形式で書いてください。`,
-
-  weekly: `あなたは営業週報を作成するアシスタントです。
-以下の商談メモから、週報形式でまとめてください。
+  bant: `あなたは営業日報を作成するアシスタントです。
+以下の商談メモから、BANT形式の営業日報を作成してください。
 
 【形式】
 ━━━━━━━━━━━━━━━━━━━━━━━━
-📅 週報: ○月○日〜○月○日
+📊 BANT分析レポート
 
-■ 今週の活動サマリー
-  訪問件数: ○件
-  商談件数: ○件
-  
-■ 主な商談内容
-  1. 
-  2.
-  
-■ 成果・進捗
-  
-■ 課題・懸念事項
+■ 基本情報
+  訪問先: 
+  担当者: 
 
-■ 来週の予定・目標
+■ BANT分析
+  【Budget（予算）】
+  ・予算規模: 
+  ・予算確保状況: 
+
+  【Authority（決裁権）】
+  ・決裁者: 
+  ・決裁プロセス: 
+
+  【Need（ニーズ）】
+  ・顕在ニーズ: 
+  ・潜在ニーズ: 
+  ・課題: 
+
+  【Timeline（導入時期）】
+  ・希望時期: 
+  ・スケジュール感: 
+
+■ 受注確度: ○○%
+■ 次のアクション:
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
-週の振り返りとして、成果と課題を明確にまとめてください。`,
+営業戦略の立案に役立つよう、BANT情報を詳しく分析してください。`,
 
-  executive: `あなたは経営層向けの営業レポートを作成するアシスタントです。
-以下の商談メモから、エグゼクティブ向けの簡潔なレポートを作成してください。
+  report: `あなたは営業日報を作成するアシスタントです。
+以下の商談メモから、会社向けの正式な報告書形式の営業日報を作成してください。
 
 【形式】
 ━━━━━━━━━━━━━━━━━━━━━━━━
-📊 エグゼクティブサマリー
+営業活動報告書
 
-【結論】
-（1行で結論を記載）
+報告日: 本日
+報告者: 
 
-【概要】
-・顧客: 
-・案件規模: 
-・確度: ○○%
-・次のマイルストーン:
+1. 訪問概要
+  訪問先: 
+  訪問日時: 
+  面談者: 
+  訪問目的: 
 
-【リスク/課題】
-・
+2. 商談内容
+  2.1 先方の状況
+  
+  2.2 提案内容
+  
+  2.3 先方の反応・要望
 
-【アクション依頼】
-・
+3. 結果と評価
+  商談結果: 
+  受注見込: 
+
+4. 今後の対応
+  次回アクション: 
+  期限: 
+
+5. 所見・課題
+
+以上
 ━━━━━━━━━━━━━━━━━━━━━━━━
 
-経営層が1分で状況を把握できるよう、簡潔かつインパクトのある形式で書いてください。`,
+正式な報告書として、丁寧かつ詳細に記載してください。`,
+
+  sales: `あなたは営業日報を作成するアシスタントです。
+以下の商談メモから、営業チーム向けの日報を作成してください。
+
+【形式】
+━━━━━━━━━━━━━━━━━━━━━━━━
+📝 営業日報
+
+【訪問先】
+・会社名: 
+・担当者: 
+・部署・役職: 
+
+【商談サマリー】
+（3行以内で要約）
+
+【詳細】
+・背景: 
+・課題: 
+・提案: 
+・反応: 
+
+【競合情報】
+
+
+【案件ステータス】
+・フェーズ: 
+・確度: ○%
+・予算: 
+
+【ネクストアクション】
+・タスク: 
+・期限: 
+
+【コメント・気づき】
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+
+営業チームが情報を共有しやすい形式で記載してください。`,
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const { input, format } = await req.json();
+    const { input, format, customPrompt } = await req.json();
 
-    if (!input || !format) {
+    if (!input) {
       return NextResponse.json(
-        { error: '入力データが不足しています' },
+        { error: '商談メモを入力してください' },
         { status: 400 }
       );
     }
 
-    if (!process.env.OPENAI_API_KEY) {
+    // OpenAIクライアントを取得
+    let openai: OpenAI;
+    try {
+      openai = getOpenAIClient();
+    } catch (e) {
+      console.error('OpenAI client error:', e);
       return NextResponse.json(
-        { error: 'APIキーが設定されていません' },
+        { error: 'APIキーが設定されていません。管理者に連絡してください。' },
         { status: 500 }
       );
     }
 
-    const systemPrompt = PROMPTS[format as keyof typeof PROMPTS] || PROMPTS.simple;
+    // カスタムプロンプトがある場合はそれを使用（Proプラン用）
+    let systemPrompt: string;
+    if (customPrompt) {
+      systemPrompt = `あなたは営業日報を作成するアシスタントです。
+以下のカスタムフォーマットに従って、営業日報を作成してください。
+
+【カスタムフォーマット】
+${customPrompt}
+
+フォーマットに従って、簡潔かつ正確に日報を作成してください。`;
+    } else {
+      systemPrompt = PROMPTS[format as keyof typeof PROMPTS] || PROMPTS.simple;
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -133,7 +207,7 @@ export async function POST(req: NextRequest) {
         { role: 'user', content: `以下の商談メモから日報を作成してください:\n\n${input}` },
       ],
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: 1500,
     });
 
     const report = completion.choices[0]?.message?.content || '日報の生成に失敗しました。';
@@ -141,6 +215,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ report });
   } catch (error) {
     console.error('Error generating report:', error);
+    
+    // エラーの詳細をログに出力
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return NextResponse.json(
       { error: '日報の生成に失敗しました。もう一度お試しください。' },
       { status: 500 }

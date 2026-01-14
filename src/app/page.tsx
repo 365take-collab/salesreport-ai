@@ -3,18 +3,32 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-type FormatType = 'simple' | 'detailed' | 'narrative' | 'weekly' | 'executive';
+type FormatType = 'simple' | 'detailed' | 'bant' | 'report' | 'sales' | 'custom';
 
 const FREE_LIMIT = 3;
 const UTAGE_REPORT_URL = process.env.NEXT_PUBLIC_UTAGE_REPORT_URL || '#';
 const UTAGE_COACHING_URL = process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#';
 
+// フォーマット一覧（プラン別）
+const FORMATS = {
+  simple: { name: 'シンプル（箇条書き）', plan: 'free' },
+  detailed: { name: '詳細（上司報告向け）', plan: 'basic' },
+  bant: { name: 'BANT分析', plan: 'basic' },
+  report: { name: '正式報告書', plan: 'basic' },
+  sales: { name: '営業日報', plan: 'basic' },
+  custom: { name: '✨ カスタム（自分で作成）', plan: 'pro' },
+};
+
 export default function Home() {
   const [email, setEmail] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
   const [usageCount, setUsageCount] = useState(0);
+  const [userPlan, setUserPlan] = useState<'free' | 'basic' | 'pro'>('free');
   const [input, setInput] = useState('');
   const [format, setFormat] = useState<FormatType>('simple');
+  const [customPrompt, setCustomPrompt] = useState('');
+  const [showCustomEditor, setShowCustomEditor] = useState(false);
+  const [savedCustomFormats, setSavedCustomFormats] = useState<{name: string, prompt: string}[]>([]);
   const [report, setReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
@@ -25,10 +39,20 @@ export default function Home() {
   // 初回ロード時にローカルストレージから復元
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
+    const savedFormats = localStorage.getItem('salesreport_custom_formats');
+    
     if (savedEmail) {
       setEmail(savedEmail);
       setIsRegistered(true);
       checkUsage(savedEmail);
+    }
+    
+    if (savedFormats) {
+      try {
+        setSavedCustomFormats(JSON.parse(savedFormats));
+      } catch {
+        // ignore
+      }
     }
   }, []);
 
@@ -80,8 +104,21 @@ export default function Home() {
       return;
     }
 
-    // 使用回数チェック
-    if (usageCount >= FREE_LIMIT) {
+    // フォーマットのプランチェック
+    const formatConfig = FORMATS[format];
+    if (formatConfig.plan === 'basic' && userPlan === 'free') {
+      setError('このフォーマットはBasicプラン以上で利用できます');
+      setShowUpgradeModal(true);
+      return;
+    }
+    if (formatConfig.plan === 'pro' && userPlan !== 'pro') {
+      setError('カスタムフォーマットはProプラン限定です');
+      setShowUpgradeModal(true);
+      return;
+    }
+
+    // 使用回数チェック（無料プランのみ）
+    if (userPlan === 'free' && usageCount >= FREE_LIMIT) {
       setShowLimitModal(true);
       return;
     }
@@ -90,17 +127,23 @@ export default function Home() {
     setError('');
 
     try {
-      // 使用回数をインクリメント
-      await fetch('/api/usage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
+      // 使用回数をインクリメント（無料プランのみ）
+      if (userPlan === 'free') {
+        await fetch('/api/usage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+      }
 
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input, format }),
+        body: JSON.stringify({ 
+          input, 
+          format: format === 'custom' ? 'simple' : format,
+          customPrompt: format === 'custom' ? customPrompt : undefined,
+        }),
       });
 
       const data = await response.json();
@@ -110,10 +153,12 @@ export default function Home() {
       }
 
       setReport(data.report);
-      setUsageCount(prev => prev + 1);
+      if (userPlan === 'free') {
+        setUsageCount(prev => prev + 1);
+      }
       
       // 残り回数が少なくなったらアップセル
-      if (usageCount + 1 >= FREE_LIMIT - 1) {
+      if (userPlan === 'free' && usageCount + 1 >= FREE_LIMIT - 1) {
         setTimeout(() => setShowUpgradeModal(true), 1000);
       }
     } catch (err) {
@@ -123,12 +168,42 @@ export default function Home() {
     }
   };
 
+  const handleSaveCustomFormat = () => {
+    const name = prompt('カスタムフォーマットの名前を入力してください');
+    if (!name || !customPrompt.trim()) return;
+    
+    const newFormats = [...savedCustomFormats, { name, prompt: customPrompt }];
+    setSavedCustomFormats(newFormats);
+    localStorage.setItem('salesreport_custom_formats', JSON.stringify(newFormats));
+    alert('カスタムフォーマットを保存しました！');
+  };
+
+  const handleLoadCustomFormat = (prompt: string) => {
+    setCustomPrompt(prompt);
+    setShowCustomEditor(true);
+  };
+
+  const handleDeleteCustomFormat = (index: number) => {
+    const newFormats = savedCustomFormats.filter((_, i) => i !== index);
+    setSavedCustomFormats(newFormats);
+    localStorage.setItem('salesreport_custom_formats', JSON.stringify(newFormats));
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(report);
     alert('クリップボードにコピーしました');
   };
 
   const remaining = Math.max(0, FREE_LIMIT - usageCount);
+
+  // フォーマットが選択可能かチェック
+  const isFormatAvailable = (formatKey: FormatType) => {
+    const formatConfig = FORMATS[formatKey];
+    if (formatConfig.plan === 'free') return true;
+    if (formatConfig.plan === 'basic' && (userPlan === 'basic' || userPlan === 'pro')) return true;
+    if (formatConfig.plan === 'pro' && userPlan === 'pro') return true;
+    return false;
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
@@ -307,27 +382,132 @@ export default function Home() {
                   <label className="block text-sm text-slate-400 mb-1">フォーマット</label>
                   <select
                     value={format}
-                    onChange={(e) => setFormat(e.target.value as FormatType)}
+                    onChange={(e) => {
+                      const newFormat = e.target.value as FormatType;
+                      setFormat(newFormat);
+                      if (newFormat === 'custom') {
+                        setShowCustomEditor(true);
+                      }
+                    }}
                     className="w-full p-3 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                   >
-                    <option value="simple">シンプル（箇条書き）</option>
-                    <option value="detailed" disabled className="text-slate-500">🔒 詳細（上司報告向け）- Basicプラン</option>
-                    <option value="narrative" disabled className="text-slate-500">🔒 文章形式 - Basicプラン</option>
-                    <option value="weekly" disabled className="text-slate-500">🔒 週報形式 - Basicプラン</option>
-                    <option value="executive" disabled className="text-slate-500">🔒 エグゼクティブ - Basicプラン</option>
+                    {Object.entries(FORMATS).map(([key, config]) => (
+                      <option 
+                        key={key} 
+                        value={key}
+                        disabled={!isFormatAvailable(key as FormatType)}
+                        className={!isFormatAvailable(key as FormatType) ? 'text-slate-500' : ''}
+                      >
+                        {!isFormatAvailable(key as FormatType) ? '🔒 ' : ''}
+                        {config.name}
+                        {!isFormatAvailable(key as FormatType) ? ` - ${config.plan === 'basic' ? 'Basic' : 'Pro'}プラン` : ''}
+                      </option>
+                    ))}
                   </select>
-                  <p className="text-xs text-amber-400 mt-1">
-                    🔓 Basicプランで全5種類のフォーマットが使えます
-                  </p>
+                  
+                  {userPlan === 'free' && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      🔓 Basicプランで5種類、Proプランでカスタム作成が使えます
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={handleGenerate}
-                  disabled={isLoading || remaining === 0}
+                  disabled={isLoading || (userPlan === 'free' && remaining === 0)}
                   className="sm:self-end px-8 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
                 >
                   {isLoading ? '生成中...' : '🚀 日報を生成'}
                 </button>
               </div>
+
+              {/* カスタムフォーマットエディター（Proプラン用） */}
+              {format === 'custom' && showCustomEditor && (
+                <div className="mt-4 p-4 bg-slate-900 border border-purple-500/50 rounded-lg">
+                  <div className="flex justify-between items-center mb-3">
+                    <h4 className="font-semibold text-purple-400">✨ カスタムフォーマット</h4>
+                    <button 
+                      onClick={() => setShowCustomEditor(false)}
+                      className="text-slate-400 hover:text-white text-sm"
+                    >
+                      閉じる
+                    </button>
+                  </div>
+                  
+                  {userPlan !== 'pro' ? (
+                    <div className="text-center py-6">
+                      <p className="text-slate-400 mb-4">
+                        カスタムフォーマットは<strong className="text-purple-400">Proプラン限定</strong>機能です。
+                        <br />
+                        自社のフォーマットに合わせた日報を自動生成できます。
+                      </p>
+                      <a
+                        href={UTAGE_COACHING_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg transition-colors"
+                      >
+                        Proプランにアップグレード
+                      </a>
+                    </div>
+                  ) : (
+                    <>
+                      <textarea
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
+                        className="w-full h-32 p-3 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-sm"
+                        placeholder={`自社のフォーマットを入力してください...
+
+例：
+■ 日付:
+■ 顧客名:
+■ 商談内容:
+■ 次回アクション:
+■ 備考:`}
+                      />
+                      
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={handleSaveCustomFormat}
+                          className="px-4 py-2 bg-purple-500/20 border border-purple-500/50 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm transition-colors"
+                        >
+                          💾 保存
+                        </button>
+                        <button
+                          onClick={() => setCustomPrompt('')}
+                          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition-colors"
+                        >
+                          🗑 クリア
+                        </button>
+                      </div>
+                      
+                      {/* 保存したカスタムフォーマット一覧 */}
+                      {savedCustomFormats.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-700">
+                          <h5 className="text-sm text-slate-400 mb-2">保存済みフォーマット:</h5>
+                          <div className="flex flex-wrap gap-2">
+                            {savedCustomFormats.map((fmt, i) => (
+                              <div key={i} className="flex items-center gap-1 bg-slate-800 rounded px-2 py-1">
+                                <button
+                                  onClick={() => handleLoadCustomFormat(fmt.prompt)}
+                                  className="text-sm text-purple-400 hover:text-purple-300"
+                                >
+                                  {fmt.name}
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCustomFormat(i)}
+                                  className="text-slate-500 hover:text-red-400 text-xs ml-1"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               {error && (
                 <div className="mt-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300">
@@ -350,7 +530,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={handleGenerate}
-                      disabled={remaining === 0}
+                      disabled={userPlan === 'free' && remaining === 0}
                       className="px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm transition-colors"
                     >
                       🔄 再生成
@@ -380,9 +560,9 @@ export default function Home() {
                 <li>✓ 月3回まで</li>
                 <li>✓ シンプル形式のみ</li>
                 <li className="text-slate-500">✗ 営業コーチングなし</li>
-                <li className="text-slate-500">✗ 履歴保存なし</li>
+                <li className="text-slate-500">✗ カスタムフォーマットなし</li>
               </ul>
-              {isRegistered && (
+              {isRegistered && userPlan === 'free' && (
                 <div className="text-xs text-green-400 text-center">✓ 現在ご利用中</div>
               )}
             </div>
@@ -398,7 +578,7 @@ export default function Home() {
                 <li>✓ <strong>5種類</strong>のフォーマット</li>
                 <li>✓ 営業コーチング<strong>月1回</strong></li>
                 <li>✓ 履歴保存・検索</li>
-                <li className="text-slate-500">✗ 週次レポートなし</li>
+                <li className="text-slate-500">✗ カスタムフォーマットなし</li>
               </ul>
               <a
                 href={UTAGE_REPORT_URL}
@@ -422,8 +602,8 @@ export default function Home() {
               <ul className="text-sm text-slate-300 space-y-2 mb-4">
                 <li>✓ <strong>無制限</strong>の日報生成</li>
                 <li>✓ <strong>5種類</strong>のフォーマット</li>
+                <li>✓ <strong className="text-purple-400">カスタムフォーマット作成</strong></li>
                 <li>✓ 営業コーチング<strong className="text-purple-400">無制限</strong></li>
-                <li>✓ 履歴保存・検索</li>
                 <li>✓ <strong>週次レポート自動生成</strong></li>
                 <li>✓ <strong>優先サポート</strong></li>
               </ul>
@@ -588,7 +768,7 @@ export default function Home() {
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-green-400">✓</span>
-                  履歴保存
+                  5種類のフォーマット
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-green-400">✓</span>
