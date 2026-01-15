@@ -39,10 +39,20 @@
 CREATE TABLE salesreport_users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
+  name TEXT,
   usage_count INTEGER DEFAULT 0,
   plan TEXT DEFAULT 'free',
+  status TEXT DEFAULT 'active',
+  is_annual BOOLEAN DEFAULT FALSE,
+  subscribed_at TIMESTAMP WITH TIME ZONE,
+  cancelled_at TIMESTAMP WITH TIME ZONE,
+  cancel_reason TEXT,
+  transaction_id TEXT,
+  product_name TEXT,
+  amount INTEGER,
   last_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 履歴テーブル作成
