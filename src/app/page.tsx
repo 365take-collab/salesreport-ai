@@ -37,16 +37,26 @@ export default function Home() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [showReferralSuccess, setShowReferralSuccess] = useState(false);
+  
+  // 認証関連のステート
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationError, setVerificationError] = useState('');
 
   // 初回ロード時にローカルストレージから復元
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
     const savedFormats = localStorage.getItem('salesreport_custom_formats');
+    const savedVerified = localStorage.getItem('salesreport_verified');
     
     if (savedEmail) {
       setEmail(savedEmail);
       setIsRegistered(true);
+      setIsEmailVerified(savedVerified === 'true');
       checkUsage(savedEmail);
+      checkVerificationStatus(savedEmail);
     }
     
     if (savedFormats) {
@@ -63,8 +73,88 @@ export default function Home() {
       const response = await fetch(`/api/usage?email=${encodeURIComponent(userEmail)}`);
       const data = await response.json();
       setUsageCount(data.usageCount || 0);
+      
+      // 認証状態も同時にチェック
+      if (data.emailVerified !== undefined) {
+        setIsEmailVerified(data.emailVerified);
+        if (data.emailVerified) {
+          localStorage.setItem('salesreport_verified', 'true');
+        }
+      }
     } catch {
       console.error('Failed to check usage');
+    }
+  };
+
+  // 認証状態を確認（単独で呼び出す用）
+  const checkVerificationStatus = async (userEmail: string) => {
+    try {
+      const response = await fetch(`/api/usage?email=${encodeURIComponent(userEmail)}`);
+      const data = await response.json();
+      if (data.emailVerified) {
+        setIsEmailVerified(true);
+        localStorage.setItem('salesreport_verified', 'true');
+      }
+    } catch {
+      console.error('Failed to check verification status');
+    }
+  };
+
+  // 認証コードを検証
+  const handleVerify = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      setVerificationError('6桁の認証コードを入力してください');
+      return;
+    }
+
+    setIsVerifying(true);
+    setVerificationError('');
+
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: verificationCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '認証に失敗しました');
+      }
+
+      setIsEmailVerified(true);
+      setShowVerificationModal(false);
+      localStorage.setItem('salesreport_verified', 'true');
+      alert('メール認証が完了しました！');
+    } catch (err) {
+      setVerificationError(err instanceof Error ? err.message : '認証に失敗しました');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  // 認証コードを再送信
+  const handleResendCode = async () => {
+    setIsVerifying(true);
+    setVerificationError('');
+
+    try {
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, action: 'send' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('認証コードの再送信に失敗しました');
+      }
+
+      alert('認証コードを再送信しました。メールをご確認ください。');
+    } catch (err) {
+      setVerificationError(err instanceof Error ? err.message : '再送信に失敗しました');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -93,6 +183,14 @@ export default function Home() {
       localStorage.setItem('salesreport_email', email);
       setIsRegistered(true);
       setUsageCount(data.usageCount || 0);
+
+      // 認証が必要な場合はモーダルを表示
+      if (data.needsVerification) {
+        setShowVerificationModal(true);
+      } else if (data.emailVerified) {
+        setIsEmailVerified(true);
+        localStorage.setItem('salesreport_verified', 'true');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {
@@ -103,6 +201,13 @@ export default function Home() {
   const handleGenerate = async () => {
     if (!input.trim()) {
       setError('商談メモを入力してください');
+      return;
+    }
+
+    // メール認証チェック（登録済みで未認証の場合）
+    if (isRegistered && !isEmailVerified) {
+      setShowVerificationModal(true);
+      setError('日報を生成するには、メール認証が必要です');
       return;
     }
 
@@ -885,6 +990,78 @@ export default function Home() {
               >
                 後で検討する
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* メール認証モーダル */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-amber-500 relative animate-scaleIn">
+            <button
+              onClick={() => setShowVerificationModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+            
+            <div className="text-center mb-6">
+              <span className="text-5xl">📧</span>
+              <h3 className="text-2xl font-bold mt-4 mb-2">
+                メール認証
+              </h3>
+              <p className="text-slate-300">
+                <strong className="text-amber-400">{email}</strong> に
+                <br />
+                6桁の認証コードを送信しました
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">
+                  認証コード（6桁）
+                </label>
+                <input
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white text-center text-2xl tracking-widest placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  maxLength={6}
+                />
+              </div>
+
+              {verificationError && (
+                <div className="p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm text-center">
+                  {verificationError}
+                </div>
+              )}
+
+              <button
+                onClick={handleVerify}
+                disabled={isVerifying || verificationCode.length !== 6}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
+              >
+                {isVerifying ? '確認中...' : '✓ 認証する'}
+              </button>
+
+              <div className="text-center">
+                <button
+                  onClick={handleResendCode}
+                  disabled={isVerifying}
+                  className="text-amber-400 hover:text-amber-300 text-sm underline disabled:opacity-50"
+                >
+                  認証コードを再送信
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 text-center">
+                ※認証コードは30分間有効です
+                <br />
+                メールが届かない場合は迷惑メールフォルダをご確認ください
+              </p>
             </div>
           </div>
         </div>

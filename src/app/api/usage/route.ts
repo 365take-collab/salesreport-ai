@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsageCount, incrementUsage } from '@/lib/supabase';
+import { getUsageCount, incrementUsage, isEmailVerified } from '@/lib/supabase';
 
 const FREE_LIMIT = 3;
 
@@ -22,10 +22,12 @@ export async function GET(req: NextRequest) {
         limit: FREE_LIMIT,
         remaining: FREE_LIMIT,
         canUse: true,
+        emailVerified: true,
       });
     }
 
     const usageCount = await getUsageCount(email);
+    const emailVerified = await isEmailVerified(email);
     const remaining = Math.max(0, FREE_LIMIT - usageCount);
 
     return NextResponse.json({
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
       limit: FREE_LIMIT,
       remaining,
       canUse: usageCount < FREE_LIMIT,
+      emailVerified,
     });
 
   } catch (error) {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registerUser, getUsageCount } from '@/lib/supabase';
+import { registerUser, getUsageCount, isEmailVerified } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
+    const { email, source } = await req.json();
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
         success: true,
         isNew: true,
         usageCount: 0,
+        needsVerification: false,
         message: 'メールアドレスを登録しました（テストモード）',
       });
     }
@@ -32,9 +33,31 @@ export async function POST(req: NextRequest) {
     }
 
     const usageCount = await getUsageCount(email);
+    const verified = await isEmailVerified(email);
 
-    // Utage フォーム連携（新規登録時のみ）
-    if (result.isNew) {
+    // 認証コードをメールで送信（Utage経由）
+    if (result.needsVerification && result.verificationCode) {
+      try {
+        // 認証コード送信用のUtageフォームに送信
+        // ※ Utageで認証コード送信用のシナリオを作成し、そのフォームURLを設定
+        const utageVerificationFormUrl = process.env.UTAGE_VERIFICATION_FORM_URL || 'https://utage-system.com/r/SH7RQHstnrbE/store';
+        const formData = new URLSearchParams();
+        formData.append('mail', email);
+        formData.append('verification_code', result.verificationCode);
+        
+        await fetch(utageVerificationFormUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
+      } catch (webhookError) {
+        console.error('Verification email error:', webhookError);
+        // メール送信失敗してもアプリは続行
+      }
+    }
+
+    // 新規登録時のUtage連携（通常のウェルカムメール用）
+    if (result.isNew && source !== 'lead_magnet') {
       try {
         const utageFormUrl = 'https://utage-system.com/r/SH7RQHstnrbE/store';
         const formData = new URLSearchParams();
@@ -47,7 +70,6 @@ export async function POST(req: NextRequest) {
         });
       } catch (webhookError) {
         console.error('Utage form submission error:', webhookError);
-        // Utage送信失敗してもアプリは続行
       }
     }
 
@@ -55,9 +77,13 @@ export async function POST(req: NextRequest) {
       success: true,
       isNew: result.isNew,
       usageCount,
+      needsVerification: result.needsVerification && !verified,
+      emailVerified: verified,
       message: result.isNew 
-        ? 'メールアドレスを登録しました！' 
-        : 'おかえりなさい！',
+        ? '認証コードをメールに送信しました。メールをご確認ください。' 
+        : verified 
+          ? 'おかえりなさい！' 
+          : '認証コードをメールに再送信しました。',
     });
 
   } catch (error) {
