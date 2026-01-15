@@ -1,12 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
-  "regions": ["hnd1"],
-  "env": {
-    "OPENAI_API_KEY": "@openai-api-key",
-    "NEXT_PUBLIC_SUPABASE_URL": "@supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "NEXT_PUBLIC_UTAGE_REPORT_URL": "@utage-report-url",
-    "NEXT_PUBLIC_UTAGE_COACHING_URL": "@utage-coaching-url"
-  }
+  "regions": ["hnd1"]
 }
