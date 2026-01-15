@@ -1094,8 +1094,21 @@ export default function Home() {
 
       {/* フッター */}
       <footer className="border-t border-slate-700 mt-16">
-        <div className="max-w-4xl mx-auto px-4 py-8 text-center text-slate-500 text-sm">
-          © 2025 SalesReport AI. All rights reserved.
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="flex flex-wrap justify-center gap-4 mb-4 text-sm">
+            <Link href="/terms" className="text-slate-400 hover:text-white transition-colors">
+              利用規約
+            </Link>
+            <Link href="/privacy" className="text-slate-400 hover:text-white transition-colors">
+              プライバシーポリシー
+            </Link>
+            <Link href="/legal" className="text-slate-400 hover:text-white transition-colors">
+              特定商取引法に基づく表記
+            </Link>
+          </div>
+          <div className="text-center text-slate-500 text-sm">
+            © 2025 SalesReport AI by LaunchX. All rights reserved.
+          </div>
         </div>
       </footer>
     </div>
