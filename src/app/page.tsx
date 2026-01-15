@@ -157,6 +157,21 @@ export default function Home() {
         setUsageCount(prev => prev + 1);
       }
       
+      // 履歴に保存
+      if (email) {
+        await fetch('/api/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            input,
+            output: data.report,
+            format,
+            type: 'report',
+          }),
+        });
+      }
+      
       // 残り回数が少なくなったらアップセル
       if (userPlan === 'free' && usageCount + 1 >= FREE_LIMIT - 1) {
         setTimeout(() => setShowUpgradeModal(true), 1000);
@@ -218,6 +233,12 @@ export default function Home() {
             <Link href="/coaching" className="text-slate-300 hover:text-white transition-colors">
               営業コーチング
             </Link>
+            <Link href="/weekly" className="text-slate-300 hover:text-white transition-colors hidden sm:block">
+              週報作成
+            </Link>
+            <Link href="/history" className="text-slate-300 hover:text-white transition-colors hidden sm:block">
+              履歴
+            </Link>
             {isRegistered && (
               <span className="text-xs text-slate-500 hidden sm:block">
                 残り{remaining}回
@@ -229,21 +250,21 @@ export default function Home() {
 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {/* ヒーローセクション */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 animate-fadeIn">
           <h2 className="text-3xl sm:text-4xl font-bold mb-3">
             日報のために残業するのは、
             <br />
-            <span className="text-amber-400">今日で最後。</span>
+            <span className="gradient-text">今日で最後。</span>
           </h2>
           <p className="text-slate-400 mb-4">
             商談メモを貼るだけ。30秒で完成。
           </p>
           <div className="flex flex-wrap justify-center gap-3 mb-4">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full text-green-400 text-sm hover-lift">
               <span>✨</span>
               <span>7日間無料トライアル</span>
             </div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-500/30 rounded-full text-blue-400 text-sm hover-lift">
               <span>👥</span>
               <span>1,200人以上の営業マンが利用中</span>
             </div>
@@ -279,7 +300,7 @@ export default function Home() {
               <button
                 onClick={handleRegister}
                 disabled={isRegistering}
-                className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
+                className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors btn-ripple glow-amber"
               >
                 {isRegistering ? '登録中...' : '🚀 無料で始める'}
               </button>
@@ -414,9 +435,14 @@ export default function Home() {
                 <button
                   onClick={handleGenerate}
                   disabled={isLoading || (userPlan === 'free' && remaining === 0)}
-                  className="sm:self-end px-8 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
+                  className="sm:self-end px-8 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors btn-ripple glow-amber"
                 >
-                  {isLoading ? '生成中...' : '🚀 日報を生成'}
+                  {isLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="animate-spin">⏳</span>
+                      生成中...
+                    </span>
+                  ) : '🚀 日報を生成'}
                 </button>
               </div>
 
@@ -518,7 +544,7 @@ export default function Home() {
 
             {/* 生成結果 */}
             {report && (
-              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
+              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700 animate-scaleIn">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">📄 生成された日報</h3>
                   <div className="flex gap-2">
@@ -552,7 +578,7 @@ export default function Home() {
           
           <div className="grid sm:grid-cols-3 gap-4">
             {/* Free（梅） */}
-            <div className="bg-slate-900 rounded-lg p-4 border border-slate-600">
+            <div className="bg-slate-900 rounded-lg p-4 border border-slate-600 card-hover">
               <div className="text-lg font-semibold mb-2">Free</div>
               <div className="text-2xl font-bold mb-1">¥0</div>
               <div className="text-sm text-slate-500 mb-4">ずっと無料</div>
@@ -568,7 +594,7 @@ export default function Home() {
             </div>
 
             {/* Basic（竹）*/}
-            <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg p-4 border border-amber-500/50">
+            <div className="bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-lg p-4 border border-amber-500/50 hover-lift">
               <div className="text-lg font-semibold mb-2 text-amber-400">Basic</div>
               <div className="text-2xl font-bold mb-1">¥980<span className="text-sm font-normal text-slate-400">/月</span></div>
               <div className="text-xs text-slate-400 mb-1">または ¥9,800/年（2ヶ月無料）</div>
@@ -591,7 +617,7 @@ export default function Home() {
             </div>
 
             {/* Pro（松）*/}
-            <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 border-2 border-purple-500 relative">
+            <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg p-4 border-2 border-purple-500 relative hover-lift glow-purple">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full">
                 おすすめ
               </div>

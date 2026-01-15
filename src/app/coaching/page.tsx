@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface CategoryScore {
@@ -27,10 +27,18 @@ interface AnalysisResult {
 }
 
 export default function CoachingPage() {
+  const [email, setEmail] = useState('');
   const [transcript, setTranscript] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('salesreport_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+    }
+  }, []);
 
   const handleAnalyze = async () => {
     if (!transcript.trim()) {
@@ -56,6 +64,20 @@ export default function CoachingPage() {
       }
 
       setResult(data);
+      
+      // 履歴に保存
+      if (email) {
+        await fetch('/api/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            input: transcript,
+            output: JSON.stringify(data, null, 2),
+            type: 'coaching',
+          }),
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '分析に失敗しました');
     } finally {
@@ -91,6 +113,12 @@ export default function CoachingPage() {
             </Link>
             <Link href="/coaching" className="text-amber-400 font-semibold">
               営業コーチング
+            </Link>
+            <Link href="/weekly" className="text-slate-300 hover:text-white transition-colors">
+              週報作成
+            </Link>
+            <Link href="/history" className="text-slate-300 hover:text-white transition-colors">
+              履歴
             </Link>
           </nav>
         </div>

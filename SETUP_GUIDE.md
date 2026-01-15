@@ -36,22 +36,40 @@
 
 ```sql
 -- ユーザーテーブル作成
-CREATE TABLE users (
+CREATE TABLE salesreport_users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   usage_count INTEGER DEFAULT 0,
+  plan TEXT DEFAULT 'free',
   last_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 履歴テーブル作成
+CREATE TABLE salesreport_history (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email TEXT NOT NULL,
+  input TEXT,
+  output TEXT NOT NULL,
+  format TEXT DEFAULT 'simple',
+  type TEXT DEFAULT 'report',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- インデックス作成（検索高速化）
-CREATE INDEX users_email_idx ON users(email);
+CREATE INDEX salesreport_users_email_idx ON salesreport_users(email);
+CREATE INDEX salesreport_history_email_idx ON salesreport_history(email);
+CREATE INDEX salesreport_history_created_at_idx ON salesreport_history(created_at DESC);
 
 -- RLSを有効化
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE salesreport_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE salesreport_history ENABLE ROW LEVEL SECURITY;
 
 -- 匿名ユーザーの読み書きを許可
-CREATE POLICY "Allow anonymous access" ON users
+CREATE POLICY "Allow anonymous access" ON salesreport_users
+  FOR ALL USING (true);
+
+CREATE POLICY "Allow anonymous access" ON salesreport_history
   FOR ALL USING (true);
 ```
 
