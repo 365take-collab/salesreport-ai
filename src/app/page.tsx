@@ -35,6 +35,8 @@ export default function Home() {
   const [error, setError] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [showReferralSuccess, setShowReferralSuccess] = useState(false);
 
   // 初回ロード時にローカルストレージから復元
   useEffect(() => {
@@ -574,7 +576,18 @@ export default function Home() {
         {/* 松竹梅プラン */}
         <div className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6">
           <h3 className="text-xl font-bold mb-2 text-center">💰 料金プラン</h3>
-          <p className="text-slate-400 text-sm text-center mb-6">すべてのプランで7日間無料トライアル</p>
+          <p className="text-slate-400 text-sm text-center mb-2">すべてのプランで7日間無料トライアル</p>
+          
+          {/* 30日保証バッジ */}
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full">
+              <span className="text-2xl">🛡️</span>
+              <div className="text-left">
+                <div className="text-green-400 font-bold text-sm">30日間満足保証</div>
+                <div className="text-xs text-slate-400">成果が出なければ全額返金</div>
+              </div>
+            </div>
+          </div>
           
           <div className="grid sm:grid-cols-3 gap-4">
             {/* Free（梅） */}
@@ -645,8 +658,33 @@ export default function Home() {
           </div>
           
           <p className="text-xs text-slate-500 text-center mt-4">
-            いつでもキャンセルOK・返金保証あり
+            いつでもキャンセルOK・30日間満足保証
           </p>
+          
+          {/* Enterpriseプラン */}
+          <div className="mt-6 pt-6 border-t border-slate-700">
+            <div className="bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="text-center sm:text-left">
+                <div className="flex items-center gap-2 justify-center sm:justify-start">
+                  <span className="text-xl">🏢</span>
+                  <span className="font-bold text-lg">Enterprise</span>
+                  <span className="text-xs bg-slate-600 px-2 py-0.5 rounded">チーム向け</span>
+                </div>
+                <p className="text-sm text-slate-400 mt-1">
+                  5名以上のチームで利用可能。管理者ダッシュボード、チーム分析レポート付き。
+                </p>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold">¥29,800<span className="text-sm font-normal text-slate-400">/月〜</span></div>
+                <button
+                  onClick={() => window.open('mailto:support@salesreport.ai?subject=Enterprise%E3%83%97%E3%83%A9%E3%83%B3%E3%81%AE%E3%81%8A%E5%95%8F%E3%81%84%E5%90%88%E3%82%8F%E3%81%9B', '_blank')}
+                  className="mt-2 px-4 py-2 border border-slate-500 hover:bg-slate-700 rounded text-sm transition-colors"
+                >
+                  お問い合わせ
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 営業コーチングへの誘導 */}
@@ -677,49 +715,73 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 紹介制度 */}
-        <div className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6">
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="flex-1 text-center sm:text-left">
-              <h3 className="text-xl font-bold mb-2">
-                🎁 友達紹介で1ヶ月無料！
-              </h3>
-              <p className="text-slate-400 text-sm mb-4">
-                あなたの紹介で友達が登録すると、<strong className="text-amber-400">あなたも友達も</strong>1ヶ月無料に！
-              </p>
-              <div className="flex flex-wrap gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">👤</span>
-                  <div>
-                    <div className="font-semibold">あなた</div>
-                    <div className="text-green-400">1ヶ月無料</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">👥</span>
-                  <div>
-                    <div className="font-semibold">友達</div>
-                    <div className="text-green-400">1ヶ月無料</div>
-                  </div>
-                </div>
-              </div>
+        {/* 紹介制度（強化版） */}
+        <div className="mt-8 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-6">
+          <div className="text-center mb-6">
+            <span className="text-4xl">🎁</span>
+            <h3 className="text-2xl font-bold mt-2 mb-1">
+              友達紹介プログラム
+            </h3>
+            <p className="text-slate-400 text-sm">
+              紹介すればするほどお得に！
+            </p>
+          </div>
+          
+          {/* 特典一覧 */}
+          <div className="grid sm:grid-cols-3 gap-4 mb-6">
+            <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
+              <div className="text-3xl mb-2">1️⃣</div>
+              <div className="font-bold text-amber-400">1人紹介</div>
+              <div className="text-sm text-slate-300">あなたも友達も</div>
+              <div className="text-green-400 font-bold">1ヶ月無料</div>
             </div>
-            <div className="bg-slate-900 rounded-lg p-4 text-center">
+            <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
+              <div className="text-3xl mb-2">3️⃣</div>
+              <div className="font-bold text-amber-400">3人紹介</div>
+              <div className="text-sm text-slate-300">あなたは</div>
+              <div className="text-green-400 font-bold">永久20%オフ</div>
+            </div>
+            <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
+              <div className="text-3xl mb-2">🔟</div>
+              <div className="font-bold text-amber-400">10人紹介</div>
+              <div className="text-sm text-slate-300">あなたは</div>
+              <div className="text-purple-400 font-bold">永久無料！</div>
+            </div>
+          </div>
+          
+          {/* 紹介コード */}
+          <div className="bg-slate-900 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
               <div className="text-xs text-slate-500 mb-1">あなたの紹介コード</div>
-              <div className="text-lg font-mono font-bold text-amber-400 mb-2">
+              <div className="text-xl font-mono font-bold text-amber-400">
                 {isRegistered ? email.split('@')[0].toUpperCase() : 'XXXXX'}
               </div>
+              {isRegistered && (
+                <div className="text-xs text-slate-500 mt-1">
+                  紹介実績: <span className="text-green-400">0人</span>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2">
               <button 
                 onClick={() => {
                   if (isRegistered) {
                     navigator.clipboard.writeText(`https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`);
-                    alert('紹介リンクをコピーしました！');
+                    setShowReferralSuccess(true);
                   }
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-sm font-bold rounded transition-colors"
               >
-                📋 紹介リンクをコピー
+                📋 リンクをコピー
               </button>
+              <a
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${isRegistered ? email.split('@')[0].toUpperCase() : ''}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded transition-colors"
+              >
+                𝕏 シェア
+              </a>
             </div>
           </div>
         </div>
@@ -852,7 +914,7 @@ export default function Home() {
             <div className="text-center mb-4">
               <div className="text-2xl font-bold text-amber-400">7日間無料</div>
               <div className="text-sm text-slate-400">その後 ¥980/月</div>
-              <div className="text-xs text-green-400 mt-1">いつでもキャンセルOK</div>
+              <div className="text-xs text-green-400 mt-1">30日間満足保証・いつでもキャンセルOK</div>
             </div>
 
             <div className="flex flex-col gap-3">
@@ -874,6 +936,161 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* 購入直後のアップセルモーダル（Basic→Pro） */}
+      {showUpsellModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-gradient-to-br from-purple-900/90 to-slate-900 rounded-xl p-8 max-w-lg w-full border border-purple-500 relative animate-scaleIn">
+            <button
+              onClick={() => setShowUpsellModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+            
+            <div className="text-center mb-6">
+              <span className="text-5xl">🎉</span>
+              <h3 className="text-2xl font-bold mt-4 mb-2">
+                Basicプランへようこそ！
+              </h3>
+              <p className="text-slate-300">
+                さらに<strong className="text-purple-400">営業成績を上げたい</strong>なら...
+              </p>
+            </div>
+
+            <div className="bg-slate-800/50 rounded-lg p-4 mb-6 border border-purple-500/30">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-purple-400 text-xl">👑</span>
+                <span className="font-bold text-lg">Proプラン特別オファー</span>
+              </div>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  営業コーチング<strong className="text-purple-400">無制限</strong>（通常月1回）
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  <strong className="text-purple-400">週次レポート自動生成</strong>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  カスタムフォーマット作成
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✓</span>
+                  優先サポート
+                </li>
+              </ul>
+            </div>
+
+            <div className="text-center mb-4">
+              <div className="text-slate-400 line-through text-sm">通常 ¥9,800/月</div>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-3xl font-bold text-purple-400">初月50%オフ</span>
+                <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">限定</span>
+              </div>
+              <div className="text-xl font-bold text-white">¥4,900で今すぐ始める</div>
+              <div className="text-xs text-green-400 mt-1">30日間満足保証付き</div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <a
+                href={`${UTAGE_COACHING_URL}?upsell=true`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block text-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg transition-colors glow-purple"
+              >
+                🚀 Proプランにアップグレード
+              </a>
+              <button
+                onClick={() => setShowUpsellModal(false)}
+                className="text-slate-400 hover:text-white text-sm"
+              >
+                Basicプランで続ける
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 text-center mt-4">
+              ※このオファーは購入後24時間限定です
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 紹介成功モーダル */}
+      {showReferralSuccess && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-green-500 relative animate-scaleIn">
+            <button
+              onClick={() => setShowReferralSuccess(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+            
+            <div className="text-center">
+              <span className="text-6xl">🎊</span>
+              <h3 className="text-2xl font-bold mt-4 mb-2 text-green-400">
+                紹介リンクをコピーしました！
+              </h3>
+              <p className="text-slate-300 mb-6">
+                友達に共有して、<strong>お互いに1ヶ月無料</strong>を手に入れましょう！
+              </p>
+              
+              <div className="bg-slate-900 rounded-lg p-4 mb-4">
+                <p className="text-sm text-slate-400 mb-2">シェア文をコピー：</p>
+                <p className="text-sm text-slate-200">
+                  「営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇」
+                </p>
+              </div>
+              
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => {
+                    const shareText = `営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`;
+                    navigator.clipboard.writeText(shareText);
+                    alert('シェア文をコピーしました！');
+                  }}
+                  className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
+                >
+                  📋 シェア文をコピー
+                </button>
+                <a
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm"
+                >
+                  𝕏 でシェア
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* リードマグネットバナー */}
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-xl p-6 mt-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
+              <h3 className="text-lg font-bold flex items-center gap-2 justify-center sm:justify-start">
+                <span>📄</span>
+                無料：営業日報テンプレート集
+              </h3>
+              <p className="text-sm text-slate-400 mt-1">
+                プロの営業マンが使う5種類の日報フォーマットを無料プレゼント
+              </p>
+            </div>
+            <Link
+              href="/templates"
+              className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors whitespace-nowrap"
+            >
+              無料でもらう →
+            </Link>
+          </div>
+        </div>
+      </div>
 
       {/* フッター */}
       <footer className="border-t border-slate-700 mt-16">

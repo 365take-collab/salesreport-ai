@@ -50,6 +50,11 @@ CREATE TABLE salesreport_users (
   transaction_id TEXT,
   product_name TEXT,
   amount INTEGER,
+  referral_code TEXT UNIQUE,
+  referred_by TEXT,
+  referral_count INTEGER DEFAULT 0,
+  referral_discount INTEGER DEFAULT 0,
+  source TEXT DEFAULT 'direct',
   last_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
