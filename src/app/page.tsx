@@ -838,11 +838,15 @@ export default function Home() {
             <div className="text-center sm:text-left">
               <div className="text-xs text-slate-500 mb-1">あなたの紹介コード</div>
               <div className="text-xl font-mono font-bold text-amber-400">
-                {isRegistered ? email.split('@')[0].toUpperCase() : 'XXXXX'}
+                {isRegistered ? (userReferralCode || email.split('@')[0].toUpperCase()) : 'XXXXX'}
               </div>
                 {isRegistered && (
                 <div className="text-xs text-slate-500 mt-1">
                   紹介実績: <span className="text-green-400">{referralCount}人</span>
+                  {' '}|{' '}
+                  <Link href="/referral" className="text-blue-400 hover:underline">
+                    詳細を見る →
+                  </Link>
                 </div>
               )}
             </div>
@@ -850,7 +854,8 @@ export default function Home() {
               <button 
                 onClick={() => {
                   if (isRegistered) {
-                    navigator.clipboard.writeText(`https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`);
+                    const code = userReferralCode || email.split('@')[0].toUpperCase();
+                    navigator.clipboard.writeText(`https://salesreport-ai.vercel.app?ref=${code}`);
                     setShowReferralSuccess(true);
                   }
                 }}
@@ -859,7 +864,7 @@ export default function Home() {
                 📋 リンクをコピー
               </button>
               <a
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${isRegistered ? email.split('@')[0].toUpperCase() : ''}`)}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると特典がもらえるよ👇 https://salesreport-ai.vercel.app?ref=${isRegistered ? (userReferralCode || email.split('@')[0].toUpperCase()) : ''}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-sm rounded transition-colors"
