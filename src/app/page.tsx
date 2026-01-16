@@ -816,20 +816,20 @@ export default function Home() {
             <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
               <div className="text-3xl mb-2">1️⃣</div>
               <div className="font-bold text-amber-400">1人紹介</div>
-              <div className="text-sm text-slate-300">あなたも友達も</div>
-              <div className="text-green-400 font-bold">1ヶ月無料</div>
+              <div className="text-sm text-slate-300">有料転換で</div>
+              <div className="text-green-400 font-bold">500円クレジット</div>
             </div>
             <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
               <div className="text-3xl mb-2">3️⃣</div>
               <div className="font-bold text-amber-400">3人紹介</div>
-              <div className="text-sm text-slate-300">あなたは</div>
-              <div className="text-green-400 font-bold">永久20%オフ</div>
+              <div className="text-sm text-slate-300">累計で</div>
+              <div className="text-green-400 font-bold">2,000円クレジット</div>
             </div>
             <div className="bg-slate-800/50 rounded-lg p-4 text-center border border-slate-700">
               <div className="text-3xl mb-2">🔟</div>
               <div className="font-bold text-amber-400">10人紹介</div>
-              <div className="text-sm text-slate-300">あなたは</div>
-              <div className="text-purple-400 font-bold">永久無料！</div>
+              <div className="text-sm text-slate-300">累計で</div>
+              <div className="text-purple-400 font-bold">6ヶ月無料相当</div>
             </div>
           </div>
           

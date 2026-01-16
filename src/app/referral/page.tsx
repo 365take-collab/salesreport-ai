@@ -211,13 +211,18 @@ export default function ReferralPage() {
               <ul className="space-y-2 text-gray-300">
                 <li className="flex items-start gap-2">
                   <span className="text-green-400">✓</span>
-                  紹介した人が有料プランに登録 → <span className="text-green-400 font-medium">500円クレジット</span>
+                  紹介1人が有料転換 → <span className="text-green-400 font-medium">500円クレジット</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-400">✓</span>
-                  紹介された人 → 初月10%割引
+                  <span className="text-green-400">✓</span>
+                  3人紹介達成 → <span className="text-green-400 font-medium">累計2,000円クレジット</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-400">✓</span>
+                  10人紹介達成 → <span className="text-purple-400 font-medium">6ヶ月無料相当（5,880円）</span>
                 </li>
               </ul>
+              <p className="text-xs text-gray-500 mt-3">※クレジットは次回請求から自動で割引されます</p>
             </div>
 
             {/* 紹介履歴 */}
