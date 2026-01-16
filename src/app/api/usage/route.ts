@@ -41,6 +41,8 @@ export async function GET(req: NextRequest) {
       streak: dashboard.streak,
       salesScore: dashboard.salesScore,
       referralCount: dashboard.referralCount,
+      referralCode: dashboard.referralCode,
+      referralCredits: dashboard.referralCredits,
     });
 
   } catch (error) {

@@ -46,11 +46,29 @@ export default function Home() {
   
   // 認証関連のステート（一時的にスキップ）
   const [isEmailVerified, setIsEmailVerified] = useState(true);
+  
+  // 紹介コード関連
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [userReferralCode, setUserReferralCode] = useState('');
 
-  // 初回ロード時にローカルストレージから復元
+  // 初回ロード時にローカルストレージから復元 & 紹介コードをチェック
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
     const savedFormats = localStorage.getItem('salesreport_custom_formats');
+    
+    // URLから紹介コードを取得
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      setReferralCode(refCode);
+      localStorage.setItem('salesreport_referral_code', refCode);
+    } else {
+      // 以前保存した紹介コードがあれば使用
+      const savedRefCode = localStorage.getItem('salesreport_referral_code');
+      if (savedRefCode) {
+        setReferralCode(savedRefCode);
+      }
+    }
     
     if (savedEmail) {
       setEmail(savedEmail);
@@ -78,6 +96,7 @@ export default function Home() {
       setStreak(data.streak || 0);
       setSalesScore(data.salesScore || 0);
       setReferralCount(data.referralCount || 0);
+      setUserReferralCode(data.referralCode || '');
       setIsEmailVerified(true); // 一時的にスキップ
     } catch {
       console.error('Failed to check usage');
@@ -97,7 +116,10 @@ export default function Home() {
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          referralCode: referralCode || undefined,
+        }),
       });
 
       const data = await response.json();
@@ -107,9 +129,20 @@ export default function Home() {
       }
 
       localStorage.setItem('salesreport_email', email);
+      // 紹介コードを使用済みとしてクリア
+      if (referralCode) {
+        localStorage.removeItem('salesreport_referral_code');
+      }
+      
       setIsRegistered(true);
       setUsageCount(data.usageCount || 0);
       setIsEmailVerified(true); // 一時的にスキップ
+      setUserReferralCode(data.referralCode || '');
+      
+      // 紹介経由の登録なら成功メッセージを表示
+      if (data.referralApplied) {
+        setShowReferralSuccess(true);
+      }
       
       // ダッシュボードデータを取得
       checkUsage(email);
@@ -1138,25 +1171,29 @@ export default function Home() {
             </button>
             
             <div className="text-center">
-              <span className="text-6xl">🎊</span>
+              <span className="text-6xl">🎉</span>
               <h3 className="text-2xl font-bold mt-4 mb-2 text-green-400">
-                紹介リンクをコピーしました！
+                紹介コードが適用されました！
               </h3>
               <p className="text-slate-300 mb-6">
-                友達に共有して、<strong>お互いに1ヶ月無料</strong>を手に入れましょう！
+                紹介経由で登録しました。紹介者にも特典が付与されます！
               </p>
               
               <div className="bg-slate-900 rounded-lg p-4 mb-4">
-                <p className="text-sm text-slate-400 mb-2">シェア文をコピー：</p>
-                <p className="text-sm text-slate-200">
-                  「営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇」
+                <p className="text-sm text-slate-400 mb-2">あなたの紹介コード：</p>
+                <p className="text-xl font-mono text-green-400">
+                  {userReferralCode}
                 </p>
               </div>
+              
+              <p className="text-sm text-slate-400 mb-4">
+                あなたも友達を紹介すると、<span className="text-green-400">500円分のクレジット</span>がもらえます！
+              </p>
               
               <div className="flex gap-2 justify-center">
                 <button
                   onClick={() => {
-                    const shareText = `営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`;
+                    const shareText = `営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると特典がもらえるよ👇 https://salesreport-ai.vercel.app?ref=${userReferralCode}`;
                     navigator.clipboard.writeText(shareText);
                     alert('シェア文をコピーしました！');
                   }}
@@ -1165,7 +1202,7 @@ export default function Home() {
                   📋 シェア文をコピー
                 </button>
                 <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると1ヶ月無料になるよ👇 https://salesreport.ai?ref=${email.split('@')[0].toUpperCase()}`)}`}
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると特典がもらえるよ👇 https://salesreport-ai.vercel.app?ref=${userReferralCode}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm"
