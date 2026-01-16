@@ -38,25 +38,25 @@ export default function Home() {
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [showReferralSuccess, setShowReferralSuccess] = useState(false);
   
-  // 認証関連のステート
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isEmailVerified, setIsEmailVerified] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [verificationError, setVerificationError] = useState('');
+  // 成長戦略関連のステート（Duolingo/Grammarly式）
+  const [streak, setStreak] = useState(0);
+  const [salesScore, setSalesScore] = useState(0);
+  const [referralCount, setReferralCount] = useState(0);
+  const [showStreakModal, setShowStreakModal] = useState(false);
+  
+  // 認証関連のステート（一時的にスキップ）
+  const [isEmailVerified, setIsEmailVerified] = useState(true);
 
   // 初回ロード時にローカルストレージから復元
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
     const savedFormats = localStorage.getItem('salesreport_custom_formats');
-    const savedVerified = localStorage.getItem('salesreport_verified');
     
     if (savedEmail) {
       setEmail(savedEmail);
       setIsRegistered(true);
-      setIsEmailVerified(savedVerified === 'true');
+      setIsEmailVerified(true); // 一時的にスキップ
       checkUsage(savedEmail);
-      checkVerificationStatus(savedEmail);
     }
     
     if (savedFormats) {
@@ -74,87 +74,13 @@ export default function Home() {
       const data = await response.json();
       setUsageCount(data.usageCount || 0);
       
-      // 認証状態も同時にチェック
-      if (data.emailVerified !== undefined) {
-        setIsEmailVerified(data.emailVerified);
-        if (data.emailVerified) {
-          localStorage.setItem('salesreport_verified', 'true');
-        }
-      }
+      // ダッシュボードデータを更新（Duolingo/Grammarly式）
+      setStreak(data.streak || 0);
+      setSalesScore(data.salesScore || 0);
+      setReferralCount(data.referralCount || 0);
+      setIsEmailVerified(true); // 一時的にスキップ
     } catch {
       console.error('Failed to check usage');
-    }
-  };
-
-  // 認証状態を確認（単独で呼び出す用）
-  const checkVerificationStatus = async (userEmail: string) => {
-    try {
-      const response = await fetch(`/api/usage?email=${encodeURIComponent(userEmail)}`);
-      const data = await response.json();
-      if (data.emailVerified) {
-        setIsEmailVerified(true);
-        localStorage.setItem('salesreport_verified', 'true');
-      }
-    } catch {
-      console.error('Failed to check verification status');
-    }
-  };
-
-  // 認証コードを検証
-  const handleVerify = async () => {
-    if (!verificationCode || verificationCode.length !== 6) {
-      setVerificationError('6桁の認証コードを入力してください');
-      return;
-    }
-
-    setIsVerifying(true);
-    setVerificationError('');
-
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: verificationCode }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '認証に失敗しました');
-      }
-
-      setIsEmailVerified(true);
-      setShowVerificationModal(false);
-      localStorage.setItem('salesreport_verified', 'true');
-      alert('メール認証が完了しました！');
-    } catch (err) {
-      setVerificationError(err instanceof Error ? err.message : '認証に失敗しました');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  // 認証コードを再送信
-  const handleResendCode = async () => {
-    setIsVerifying(true);
-    setVerificationError('');
-
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, action: 'send' }),
-      });
-
-      if (!response.ok) {
-        throw new Error('認証コードの再送信に失敗しました');
-      }
-
-      alert('認証コードを再送信しました。メールをご確認ください。');
-    } catch (err) {
-      setVerificationError(err instanceof Error ? err.message : '再送信に失敗しました');
-    } finally {
-      setIsVerifying(false);
     }
   };
 
@@ -183,14 +109,10 @@ export default function Home() {
       localStorage.setItem('salesreport_email', email);
       setIsRegistered(true);
       setUsageCount(data.usageCount || 0);
-
-      // 認証が必要な場合はモーダルを表示
-      if (data.needsVerification) {
-        setShowVerificationModal(true);
-      } else if (data.emailVerified) {
-        setIsEmailVerified(true);
-        localStorage.setItem('salesreport_verified', 'true');
-      }
+      setIsEmailVerified(true); // 一時的にスキップ
+      
+      // ダッシュボードデータを取得
+      checkUsage(email);
     } catch (err) {
       setError(err instanceof Error ? err.message : '登録に失敗しました');
     } finally {
@@ -204,12 +126,7 @@ export default function Home() {
       return;
     }
 
-    // メール認証チェック（登録済みで未認証の場合）
-    if (isRegistered && !isEmailVerified) {
-      setShowVerificationModal(true);
-      setError('日報を生成するには、メール認証が必要です');
-      return;
-    }
+    // メール認証チェック（一時的にスキップ）
 
     // フォーマットのプランチェック
     const formatConfig = FORMATS[format];
@@ -234,13 +151,21 @@ export default function Home() {
     setError('');
 
     try {
-      // 使用回数をインクリメント（無料プランのみ）
+      // 使用回数をインクリメント（無料プランのみ）+ ストリーク/スコア更新
       if (userPlan === 'free') {
-        await fetch('/api/usage', {
+        const usageResponse = await fetch('/api/usage', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         });
+        const usageData = await usageResponse.json();
+        
+        // ストリーク更新時にお祝い表示（Duolingo式）
+        if (usageData.isNewDay && usageData.streak > 1) {
+          setShowStreakModal(true);
+        }
+        setStreak(usageData.streak || 0);
+        setSalesScore(usageData.salesScore || 0);
       }
 
       const response = await fetch('/api/generate', {
@@ -419,20 +344,38 @@ export default function Home() {
           </div>
         ) : (
           <>
-            {/* 使用状況ダッシュボード */}
+            {/* 使用状況ダッシュボード（Duolingo/Grammarly式） */}
             <div className="bg-slate-800 rounded-lg p-4 mb-6 border border-slate-700">
+              {/* ストリーク表示（Duolingo式） */}
+              <div className="flex items-center justify-center gap-4 mb-4 pb-4 border-b border-slate-700">
+                <div className="flex items-center gap-2 px-4 py-2 bg-orange-500/20 border border-orange-500/30 rounded-full">
+                  <span className="text-2xl">🔥</span>
+                  <div>
+                    <div className="text-orange-400 font-bold text-xl">{streak}日連続</div>
+                    <div className="text-xs text-slate-400">ストリーク継続中！</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 bg-purple-500/20 border border-purple-500/30 rounded-full">
+                  <span className="text-2xl">⭐</span>
+                  <div>
+                    <div className="text-purple-400 font-bold text-xl">{salesScore}</div>
+                    <div className="text-xs text-slate-400">営業スコア</div>
+                  </div>
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-amber-400">{usageCount}</div>
                   <div className="text-xs text-slate-500">今月の生成数</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">{usageCount * 15}</div>
-                  <div className="text-xs text-slate-500">節約した分</div>
+                  <div className="text-2xl font-bold text-green-400">{usageCount * 15}分</div>
+                  <div className="text-xs text-slate-500">節約した時間</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">🔥 {Math.min(usageCount, 7)}</div>
-                  <div className="text-xs text-slate-500">連続使用日数</div>
+                  <div className="text-2xl font-bold text-blue-400">{referralCount}人</div>
+                  <div className="text-xs text-slate-500">紹介実績</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-400">{remaining}</div>
@@ -440,22 +383,25 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* バッジ表示 */}
+              {/* バッジ表示（Duolingo式） */}
               <div className="flex flex-wrap gap-2 mb-4 pb-4 border-b border-slate-700">
                 <span className={`px-2 py-1 rounded text-xs ${usageCount >= 1 ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-500'}`}>
                   🎯 初回達成
                 </span>
-                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-500'}`}>
+                <span className={`px-2 py-1 rounded text-xs ${streak >= 3 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-700 text-slate-500'}`}>
                   🔥 3日連続
                 </span>
-                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 7 ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700 text-slate-500'}`}>
+                <span className={`px-2 py-1 rounded text-xs ${streak >= 7 ? 'bg-blue-500/20 text-blue-400' : 'bg-slate-700 text-slate-500'}`}>
                   🏆 1週間継続
                 </span>
-                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 10 ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700 text-slate-500'}`}>
-                  💯 10回達成
+                <span className={`px-2 py-1 rounded text-xs ${salesScore >= 100 ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-700 text-slate-500'}`}>
+                  ⭐ スコア100
                 </span>
-                <span className={`px-2 py-1 rounded text-xs ${usageCount >= 30 ? 'bg-pink-500/20 text-pink-400' : 'bg-slate-700 text-slate-500'}`}>
-                  👑 月間マスター
+                <span className={`px-2 py-1 rounded text-xs ${referralCount >= 1 ? 'bg-pink-500/20 text-pink-400' : 'bg-slate-700 text-slate-500'}`}>
+                  👥 初紹介達成
+                </span>
+                <span className={`px-2 py-1 rounded text-xs ${streak >= 30 ? 'bg-yellow-500/20 text-yellow-400' : 'bg-slate-700 text-slate-500'}`}>
+                  👑 30日連続
                 </span>
               </div>
               
@@ -861,9 +807,9 @@ export default function Home() {
               <div className="text-xl font-mono font-bold text-amber-400">
                 {isRegistered ? email.split('@')[0].toUpperCase() : 'XXXXX'}
               </div>
-              {isRegistered && (
+                {isRegistered && (
                 <div className="text-xs text-slate-500 mt-1">
-                  紹介実績: <span className="text-green-400">0人</span>
+                  紹介実績: <span className="text-green-400">{referralCount}人</span>
                 </div>
               )}
             </div>
@@ -995,73 +941,59 @@ export default function Home() {
         </div>
       )}
 
-      {/* メール認証モーダル */}
-      {showVerificationModal && (
+      {/* ストリークお祝いモーダル（Duolingo式） */}
+      {showStreakModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl p-8 max-w-md w-full border border-amber-500 relative animate-scaleIn">
+          <div className="bg-gradient-to-br from-orange-900/90 to-slate-900 rounded-xl p-8 max-w-md w-full border border-orange-500 relative animate-scaleIn">
             <button
-              onClick={() => setShowVerificationModal(false)}
+              onClick={() => setShowStreakModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-white"
             >
               ✕
             </button>
             
-            <div className="text-center mb-6">
-              <span className="text-5xl">📧</span>
-              <h3 className="text-2xl font-bold mt-4 mb-2">
-                メール認証
+            <div className="text-center">
+              <div className="text-8xl mb-4 animate-bounce">🔥</div>
+              <h3 className="text-3xl font-bold mb-2 text-orange-400">
+                {streak}日連続！
               </h3>
-              <p className="text-slate-300">
-                <strong className="text-amber-400">{email}</strong> に
+              <p className="text-slate-300 mb-6">
+                すごい！ストリーク継続中！
                 <br />
-                6桁の認証コードを送信しました
+                この調子で続けよう！
               </p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-slate-400 mb-2">
-                  認証コード（6桁）
-                </label>
-                <input
-                  type="text"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  className="w-full p-4 bg-slate-900 border border-slate-600 rounded-lg text-white text-center text-2xl tracking-widest placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  maxLength={6}
-                />
-              </div>
-
-              {verificationError && (
-                <div className="p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm text-center">
-                  {verificationError}
+              
+              {/* 次の目標 */}
+              <div className="bg-slate-800/50 rounded-lg p-4 mb-6">
+                <div className="text-sm text-slate-400 mb-2">次の目標まで</div>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-2xl">🏆</span>
+                  <span className="text-lg font-bold">
+                    {streak < 7 ? `${7 - streak}日で1週間達成！` : 
+                     streak < 30 ? `${30 - streak}日で30日達成！` : 
+                     '最高記録更新中！'}
+                  </span>
                 </div>
-              )}
-
-              <button
-                onClick={handleVerify}
-                disabled={isVerifying || verificationCode.length !== 6}
-                className="w-full py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded-lg transition-colors"
-              >
-                {isVerifying ? '確認中...' : '✓ 認証する'}
-              </button>
-
-              <div className="text-center">
-                <button
-                  onClick={handleResendCode}
-                  disabled={isVerifying}
-                  className="text-amber-400 hover:text-amber-300 text-sm underline disabled:opacity-50"
-                >
-                  認証コードを再送信
-                </button>
               </div>
-
-              <p className="text-xs text-slate-500 text-center">
-                ※認証コードは30分間有効です
-                <br />
-                メールが届かない場合は迷惑メールフォルダをご確認ください
-              </p>
+              
+              {/* スコア表示 */}
+              <div className="flex justify-center gap-4 mb-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-400">+{streak * 5}</div>
+                  <div className="text-xs text-slate-500">ストリークボーナス</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{salesScore}</div>
+                  <div className="text-xs text-slate-500">総合スコア</div>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setShowStreakModal(false)}
+                className="w-full py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+              >
+                続ける 🚀
+              </button>
             </div>
           </div>
         </div>

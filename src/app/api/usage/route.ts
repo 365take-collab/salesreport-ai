@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsageCount, incrementUsage, isEmailVerified } from '@/lib/supabase';
+import { getUsageCount, incrementUsage, isEmailVerified, getUserDashboard, updateStreak, updateSalesScore } from '@/lib/supabase';
 
 const FREE_LIMIT = 3;
 
-// 使用回数を取得
+// 使用回数を取得（ダッシュボードデータ含む）
 export async function GET(req: NextRequest) {
   try {
     const email = req.nextUrl.searchParams.get('email');
@@ -23,19 +23,24 @@ export async function GET(req: NextRequest) {
         remaining: FREE_LIMIT,
         canUse: true,
         emailVerified: true,
+        streak: 0,
+        salesScore: 0,
+        referralCount: 0,
       });
     }
 
-    const usageCount = await getUsageCount(email);
-    const emailVerified = await isEmailVerified(email);
-    const remaining = Math.max(0, FREE_LIMIT - usageCount);
+    const dashboard = await getUserDashboard(email);
+    const remaining = Math.max(0, FREE_LIMIT - dashboard.usageCount);
 
     return NextResponse.json({
-      usageCount,
+      usageCount: dashboard.usageCount,
       limit: FREE_LIMIT,
       remaining,
-      canUse: usageCount < FREE_LIMIT,
-      emailVerified,
+      canUse: dashboard.usageCount < FREE_LIMIT,
+      emailVerified: dashboard.emailVerified,
+      streak: dashboard.streak,
+      salesScore: dashboard.salesScore,
+      referralCount: dashboard.referralCount,
     });
 
   } catch (error) {
@@ -47,7 +52,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// 使用回数をインクリメント
+// 使用回数をインクリメント（ストリークとスコアも更新）
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
@@ -67,6 +72,8 @@ export async function POST(req: NextRequest) {
         limit: FREE_LIMIT,
         remaining: FREE_LIMIT - 1,
         canUse: true,
+        streak: 1,
+        salesScore: 10,
       });
     }
 
@@ -83,8 +90,15 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 使用回数をインクリメント
     const result = await incrementUsage(email);
     const remaining = Math.max(0, FREE_LIMIT - result.count);
+
+    // ストリーク更新（Duolingo式）
+    const streakResult = await updateStreak(email);
+
+    // 営業スコア更新（Grammarly式）
+    const salesScore = await updateSalesScore(email);
 
     return NextResponse.json({
       success: true,
@@ -92,6 +106,9 @@ export async function POST(req: NextRequest) {
       limit: FREE_LIMIT,
       remaining,
       canUse: result.count < FREE_LIMIT,
+      streak: streakResult.streak,
+      isNewDay: streakResult.isNewDay,
+      salesScore,
     });
 
   } catch (error) {

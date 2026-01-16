@@ -35,7 +35,7 @@
 3. 以下をコピペして実行：
 
 ```sql
--- ユーザーテーブル作成
+-- ユーザーテーブル作成（成長戦略機能対応版）
 CREATE TABLE salesreport_users (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
@@ -57,7 +57,12 @@ CREATE TABLE salesreport_users (
   source TEXT DEFAULT 'direct',
   last_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- 成長戦略機能（Duolingo/Grammarly式）
+  email_verified BOOLEAN DEFAULT TRUE,
+  streak_count INTEGER DEFAULT 0,
+  last_used_at TIMESTAMP WITH TIME ZONE,
+  sales_score INTEGER DEFAULT 0
 );
 
 -- 履歴テーブル作成
@@ -202,6 +207,24 @@ git push -u origin main
 
 1. 5回日報を生成
 2. 6回目で制限モーダルが表示されることを確認
+
+---
+
+## 🔄 既存テーブルの更新（成長戦略機能追加）
+
+既にテーブルがある場合は、以下のSQLを実行して新しいカラムを追加：
+
+```sql
+-- 成長戦略機能用のカラムを追加（Duolingo/Grammarly式）
+ALTER TABLE salesreport_users 
+ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT TRUE,
+ADD COLUMN IF NOT EXISTS streak_count INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS sales_score INTEGER DEFAULT 0;
+
+-- 既存ユーザーのemail_verifiedをtrueに設定
+UPDATE salesreport_users SET email_verified = TRUE WHERE email_verified IS NULL;
+```
 
 ---
 

@@ -127,37 +127,27 @@ export async function incrementUsage(email: string): Promise<{ success: boolean;
 }
 
 // ユーザー登録（メールアドレスのみ）
+// ※ 一時的にメール認証をスキップ（本番リリース前にResend導入で対応予定）
 export async function registerUser(email: string): Promise<{ success: boolean; isNew: boolean; verificationCode?: string; needsVerification?: boolean }> {
   // 既存ユーザーをチェック
   const { data: existing } = await supabase
     .from('salesreport_users')
-    .select('email, email_verified')
+    .select('email, email_verified, streak_count, last_used_at')
     .eq('email', email)
     .single();
 
   if (existing) {
-    // 既存ユーザーで未認証の場合は認証コードを再生成
+    // 既存ユーザー → 認証済みとして扱う（一時的にスキップ）
     if (!existing.email_verified) {
-      const code = generateVerificationCode();
-      const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30分後
-
       await supabase
         .from('salesreport_users')
-        .update({ 
-          verification_code: code,
-          verification_expires_at: expiresAt.toISOString()
-        })
+        .update({ email_verified: true })
         .eq('email', email);
-
-      return { success: true, isNew: false, verificationCode: code, needsVerification: true };
     }
     return { success: true, isNew: false, needsVerification: false };
   }
 
-  // 新規登録（認証コード付き）
-  const code = generateVerificationCode();
-  const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30分後
-
+  // 新規登録（認証済みとして登録 - 一時的にスキップ）
   const { error } = await supabase
     .from('salesreport_users')
     .insert({
@@ -165,9 +155,10 @@ export async function registerUser(email: string): Promise<{ success: boolean; i
       usage_count: 0,
       last_reset: new Date().toISOString(),
       created_at: new Date().toISOString(),
-      email_verified: false,
-      verification_code: code,
-      verification_expires_at: expiresAt.toISOString(),
+      email_verified: true, // 一時的にスキップ
+      streak_count: 0,
+      last_used_at: null,
+      sales_score: 0,
     });
 
   if (error) {
@@ -175,5 +166,132 @@ export async function registerUser(email: string): Promise<{ success: boolean; i
     return { success: false, isNew: false };
   }
 
-  return { success: true, isNew: true, verificationCode: code, needsVerification: true };
+  return { success: true, isNew: true, needsVerification: false };
+}
+
+// ストリーク（連続使用日数）を更新
+export async function updateStreak(email: string): Promise<{ streak: number; isNewDay: boolean }> {
+  const { data } = await supabase
+    .from('salesreport_users')
+    .select('streak_count, last_used_at')
+    .eq('email', email)
+    .single();
+
+  if (!data) {
+    return { streak: 0, isNewDay: false };
+  }
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const lastUsed = data.last_used_at ? new Date(data.last_used_at) : null;
+  const lastUsedDay = lastUsed ? new Date(lastUsed.getFullYear(), lastUsed.getMonth(), lastUsed.getDate()) : null;
+
+  let newStreak = data.streak_count || 0;
+  let isNewDay = false;
+
+  if (!lastUsedDay) {
+    // 初回使用
+    newStreak = 1;
+    isNewDay = true;
+  } else {
+    const diffDays = Math.floor((today.getTime() - lastUsedDay.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      // 同日 → ストリーク維持
+      isNewDay = false;
+    } else if (diffDays === 1) {
+      // 連続 → ストリーク+1
+      newStreak = (data.streak_count || 0) + 1;
+      isNewDay = true;
+    } else {
+      // 2日以上空いた → リセット
+      newStreak = 1;
+      isNewDay = true;
+    }
+  }
+
+  if (isNewDay) {
+    await supabase
+      .from('salesreport_users')
+      .update({ 
+        streak_count: newStreak,
+        last_used_at: now.toISOString()
+      })
+      .eq('email', email);
+  }
+
+  return { streak: newStreak, isNewDay };
+}
+
+// 営業スコアを計算・更新
+export async function updateSalesScore(email: string): Promise<number> {
+  const { data } = await supabase
+    .from('salesreport_users')
+    .select('usage_count, streak_count, referral_count')
+    .eq('email', email)
+    .single();
+
+  if (!data) {
+    return 0;
+  }
+
+  // スコア計算式（Duolingo/Grammarly式）
+  // 使用回数 × 10 + ストリーク × 5 + 紹介人数 × 50
+  const score = 
+    (data.usage_count || 0) * 10 + 
+    (data.streak_count || 0) * 5 + 
+    (data.referral_count || 0) * 50;
+
+  await supabase
+    .from('salesreport_users')
+    .update({ sales_score: score })
+    .eq('email', email);
+
+  return score;
+}
+
+// ユーザーのダッシュボードデータを取得
+export async function getUserDashboard(email: string): Promise<{
+  usageCount: number;
+  streak: number;
+  salesScore: number;
+  referralCount: number;
+  emailVerified: boolean;
+}> {
+  const { data } = await supabase
+    .from('salesreport_users')
+    .select('usage_count, streak_count, sales_score, referral_count, email_verified, last_reset')
+    .eq('email', email)
+    .single();
+
+  if (!data) {
+    return {
+      usageCount: 0,
+      streak: 0,
+      salesScore: 0,
+      referralCount: 0,
+      emailVerified: false,
+    };
+  }
+
+  // 月が変わっていたらリセット
+  const lastReset = new Date(data.last_reset);
+  const now = new Date();
+  let usageCount = data.usage_count || 0;
+  
+  if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+    await supabase
+      .from('salesreport_users')
+      .update({ usage_count: 0, last_reset: now.toISOString() })
+      .eq('email', email);
+    usageCount = 0;
+  }
+
+  return {
+    usageCount,
+    streak: data.streak_count || 0,
+    salesScore: data.sales_score || 0,
+    referralCount: data.referral_count || 0,
+    emailVerified: data.email_verified || false,
+  };
 }
