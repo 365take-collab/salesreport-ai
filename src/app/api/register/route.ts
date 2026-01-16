@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { registerUser, getUsageCount, isEmailVerified } from '@/lib/supabase';
+import { registerUser, getUsageCount, isEmailVerified, getReferralCode } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, source } = await req.json();
+    const { email, source, referralCode } = await req.json();
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const result = await registerUser(email);
+    const result = await registerUser(email, referralCode);
 
     if (!result.success) {
       return NextResponse.json(
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
 
     const usageCount = await getUsageCount(email);
     const verified = await isEmailVerified(email);
+    const userReferralCode = await getReferralCode(email);
 
     // 認証コードをメールで送信（Utage経由）
     if (result.needsVerification && result.verificationCode) {
@@ -79,8 +80,12 @@ export async function POST(req: NextRequest) {
       usageCount,
       needsVerification: result.needsVerification && !verified,
       emailVerified: verified,
+      referralCode: userReferralCode,
+      referralApplied: result.referralApplied,
       message: result.isNew 
-        ? '認証コードをメールに送信しました。メールをご確認ください。' 
+        ? result.referralApplied 
+          ? '紹介コードが適用されました！登録完了です。'
+          : '登録が完了しました！' 
         : verified 
           ? 'おかえりなさい！' 
           : '認証コードをメールに再送信しました。',

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { grantReferralReward } from '@/lib/supabase';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,10 +60,27 @@ export async function POST(request: NextRequest) {
 
     console.log('User plan updated:', { email, plan });
 
+    // 紹介報酬を付与（紹介経由の場合）
+    let referralReward = null;
+    try {
+      const rewardResult = await grantReferralReward(email);
+      if (rewardResult.success) {
+        referralReward = {
+          referrerEmail: rewardResult.referrerEmail,
+          reward: rewardResult.reward,
+        };
+        console.log('Referral reward granted:', referralReward);
+      }
+    } catch (referralError) {
+      console.error('Referral reward error:', referralError);
+      // 紹介報酬の失敗は購入処理を止めない
+    }
+
     return NextResponse.json({ 
       success: true, 
       message: 'Purchase recorded',
       plan,
+      referralReward,
     });
 
   } catch (error) {
