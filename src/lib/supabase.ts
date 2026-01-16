@@ -157,7 +157,7 @@ export async function registerUser(email: string, referralCode?: string): Promis
   }
 
   // 紹介コードを生成
-  const newReferralCode = generateReferralCode(email);
+  const newReferralCode = generateReferralCode();
 
   // 新規登録（認証済みとして登録 - 一時的にスキップ）
   const { error } = await supabase
@@ -342,7 +342,7 @@ export async function getReferralCode(email: string): Promise<string> {
   }
 
   // 紹介コードがない場合は生成
-  const code = generateReferralCode(email);
+  const code = generateReferralCode();
   await supabase
     .from('salesreport_users')
     .update({ referral_code: code })
@@ -351,11 +351,14 @@ export async function getReferralCode(email: string): Promise<string> {
   return code;
 }
 
-// 紹介コードを生成
-function generateReferralCode(email: string): string {
-  const prefix = email.substring(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, 'X');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `${prefix}${random}`;
+// 紹介コードを生成（完全ランダム8文字）
+function generateReferralCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 紛らわしい文字を除外（0,O,1,I）
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
 // 紹介コードが有効かチェック
