@@ -852,11 +852,23 @@ export default function Home() {
             </div>
             <div className="flex gap-2">
               <button 
-                onClick={() => {
+                onClick={async () => {
                   if (isRegistered) {
                     const code = userReferralCode || email.split('@')[0].toUpperCase();
-                    navigator.clipboard.writeText(`https://salesreport-ai.vercel.app?ref=${code}`);
-                    setShowReferralSuccess(true);
+                    const link = `https://salesreport-ai.vercel.app?ref=${code}`;
+                    try {
+                      await navigator.clipboard.writeText(link);
+                      setShowReferralSuccess(true);
+                    } catch (err) {
+                      // フォールバック: テキストエリアを使用
+                      const textArea = document.createElement('textarea');
+                      textArea.value = link;
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(textArea);
+                      setShowReferralSuccess(true);
+                    }
                   }
                 }}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-sm font-bold rounded transition-colors"
@@ -1197,10 +1209,20 @@ export default function Home() {
               
               <div className="flex gap-2 justify-center">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     const shareText = `営業日報を30秒で自動生成できるAIツール見つけた！このリンクから登録すると特典がもらえるよ👇 https://salesreport-ai.vercel.app?ref=${userReferralCode}`;
-                    navigator.clipboard.writeText(shareText);
-                    alert('シェア文をコピーしました！');
+                    try {
+                      await navigator.clipboard.writeText(shareText);
+                      alert('シェア文をコピーしました！');
+                    } catch (err) {
+                      const textArea = document.createElement('textarea');
+                      textArea.value = shareText;
+                      document.body.appendChild(textArea);
+                      textArea.select();
+                      document.execCommand('copy');
+                      document.body.removeChild(textArea);
+                      alert('シェア文をコピーしました！');
+                    }
                   }}
                   className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm"
                 >
