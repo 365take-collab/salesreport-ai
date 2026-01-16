@@ -57,18 +57,19 @@ CREATE OR REPLACE FUNCTION generate_referral_code(user_email TEXT)
 RETURNS TEXT AS $$
 DECLARE
   base_code TEXT;
+  clean_code TEXT;
   final_code TEXT;
   counter INTEGER := 0;
 BEGIN
-  -- メールアドレスの@前部分を取得し、ランダム文字列を追加
-  base_code := UPPER(SUBSTRING(user_email FROM 1 FOR 4)) || 
-               LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
-  final_code := base_code;
+  -- メールアドレスの最初の4文字を取得（非英数字はXに置換）
+  base_code := UPPER(SUBSTRING(user_email FROM 1 FOR 4));
+  clean_code := REGEXP_REPLACE(base_code, '[^A-Z0-9]', 'X', 'g');
+  final_code := clean_code || LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
   
   -- 重複チェック（重複があれば番号を追加）
   WHILE EXISTS (SELECT 1 FROM salesreport_users WHERE referral_code = final_code) LOOP
     counter := counter + 1;
-    final_code := base_code || counter::TEXT;
+    final_code := clean_code || LPAD(FLOOR(RANDOM() * 10000)::TEXT, 4, '0');
   END LOOP;
   
   RETURN final_code;
@@ -96,6 +97,12 @@ EXECUTE FUNCTION auto_generate_referral_code();
 UPDATE salesreport_users
 SET referral_code = generate_referral_code(email)
 WHERE referral_code IS NULL;
+
+-- 8. 既存の@入り紹介コードを修正（一度だけ実行）
+-- ※ 注意: 既にシェアされたリンクは無効になります
+UPDATE salesreport_users
+SET referral_code = REGEXP_REPLACE(referral_code, '[^A-Z0-9]', 'X', 'g')
+WHERE referral_code LIKE '%@%' OR referral_code ~ '[^A-Z0-9]';
 
 -- ============================================
 -- 確認クエリ
