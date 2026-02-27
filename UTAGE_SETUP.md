@@ -1,5 +1,7 @@
 # Utage決済ページ設定ガイド
 
+> [DEPRECATED] Utageは使用しません。Stripe設定は `SETUP_GUIDE.md` を参照してください。
+
 ## 📋 作成する商品一覧
 
 | プラン | 商品名 | 価格 | 無料トライアル |

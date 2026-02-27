@@ -104,37 +104,28 @@ CREATE POLICY "Allow anonymous access" ON salesreport_history
 
 ---
 
-## Step 2: Utage決済ページ作成（10分）
+## Step 2: Stripe設定（10分）
 
-### 2-1. 日報AI Basic（¥980/月）
+### 2-1. Products / Pricesを作成
 
-1. Utageにログイン
-2. 「商品」→「新規作成」
-3. 以下を設定：
-   - 商品名: `SalesReport AI Basic`
-   - 価格: `980円/月`
-   - 無料トライアル: `7日間`
-   - 決済方法: Stripe連携
-4. 決済ページURLをメモ
+Stripeダッシュボードで以下を作成し、**Price ID**を控えます（サブスク月額）。
 
-### 2-2. 営業コーチングAI Pro（¥9,800/月）
+- Basic: `¥980/月`（JPY, recurring monthly）
+- Pro: `¥9,800/月`（JPY, recurring monthly）
 
-1. 「商品」→「新規作成」
-2. 以下を設定：
-   - 商品名: `営業コーチングAI Pro`
-   - 価格: `9,800円/月`
-   - 無料トライアル: `7日間`
-   - 決済方法: Stripe連携
-3. 決済ページURLをメモ
+※ 7日間トライアルはアプリ側（Checkout作成時）で付与します。
 
-### 2-3. ステップメール設定（オプション）
+### 2-2. Webhookを設定
 
-登録したメールアドレスにステップメールを送りたい場合：
+StripeでWebhookエンドポイントを追加します：
 
-1. Utageで「シナリオ」→「新規作成」
-2. トリガー: Webhook
-3. メール内容を設定
-4. Webhook URLをメモ
+- Endpoint URL: `https://<your-domain>/api/stripe/webhook`
+- Events:
+  - `checkout.session.completed`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+
+作成後に表示される **Signing secret (whsec_...)** を控えます。
 
 ---
 
@@ -175,9 +166,11 @@ git push -u origin main
 | `OPENAI_API_KEY` | `sk-proj-TIjP9c4tn...`（あなたのAPIキー） |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://xxxxxx.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbGciOi...` |
-| `NEXT_PUBLIC_UTAGE_REPORT_URL` | Utageの日報AI決済ページURL |
-| `NEXT_PUBLIC_UTAGE_COACHING_URL` | Utageの営業コーチングAI決済ページURL |
-| `UTAGE_WEBHOOK_URL` | （オプション）UtageのWebhook URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOi...`（service role key） |
+| `STRIPE_SECRET_KEY` | `sk_live_or_test_...` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` |
+| `STRIPE_PRICE_BASIC_MONTHLY` | `price_...` |
+| `STRIPE_PRICE_PRO_MONTHLY` | `price_...` |
 
 6. 「Deploy」をクリック
 
@@ -200,7 +193,7 @@ git push -u origin main
 ### 4-2. 決済フローテスト
 
 1. 「7日間無料で試す」をクリック
-2. Utageの決済ページに遷移することを確認
+2. Stripe Checkoutに遷移することを確認
 3. テスト決済（Stripeのテストモードで）
 
 ### 4-3. 使用回数制限テスト

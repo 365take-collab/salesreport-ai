@@ -32,6 +32,37 @@ export default function CoachingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState('');
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+
+  const handleStripeCheckout = async (plan: 'basic' | 'pro') => {
+    if (!email.trim()) {
+      setError('メールアドレスが必要です');
+      return;
+    }
+    if (isCheckoutLoading) return;
+
+    setIsCheckoutLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), plan }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'チェックアウトの開始に失敗しました');
+      }
+
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'チェックアウトの開始に失敗しました');
+      setIsCheckoutLoading(false);
+    }
+  };
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
@@ -347,14 +378,13 @@ export default function CoachingPage() {
                 <li>✓ 営業コーチング <strong className="text-white">月1回</strong></li>
                 <li className="text-slate-500">✗ 週次レポートなし</li>
               </ul>
-              <a
-                href={process.env.NEXT_PUBLIC_UTAGE_REPORT_URL || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded transition-colors text-sm"
+              <button
+                onClick={() => handleStripeCheckout('basic')}
+                disabled={isCheckoutLoading}
+                className="block w-full text-center py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-900 font-bold rounded transition-colors text-sm"
               >
-                7日間無料で試す
-              </a>
+                {isCheckoutLoading ? '処理中...' : '7日間無料で試す'}
+              </button>
             </div>
 
             {/* Pro */}
@@ -372,14 +402,13 @@ export default function CoachingPage() {
                 <li>✓ <strong>週次レポート自動生成</strong></li>
                 <li>✓ <strong>優先サポート</strong></li>
               </ul>
-              <a
-                href={process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded transition-colors text-sm"
+              <button
+                onClick={() => handleStripeCheckout('pro')}
+                disabled={isCheckoutLoading}
+                className="block w-full text-center py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-bold rounded transition-colors text-sm"
               >
-                7日間無料で試す
-              </a>
+                {isCheckoutLoading ? '処理中...' : '7日間無料で試す'}
+              </button>
             </div>
 
             {/* Enterprise */}

@@ -5,9 +5,8 @@ import Link from 'next/link';
 
 type FormatType = 'simple' | 'detailed' | 'bant' | 'report' | 'sales' | 'custom';
 
+// 無料プランの月間利用上限
 const FREE_LIMIT = 3;
-const UTAGE_REPORT_URL = process.env.NEXT_PUBLIC_UTAGE_REPORT_URL || '#';
-const UTAGE_COACHING_URL = process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#';
 
 // フォーマット一覧（プラン別）
 const FORMATS = {
@@ -37,6 +36,7 @@ export default function Home() {
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [showReferralSuccess, setShowReferralSuccess] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   
   // 成長戦略関連のステート（Duolingo/Grammarly式）
   const [streak, setStreak] = useState(0);
@@ -269,6 +269,30 @@ export default function Home() {
     localStorage.setItem('salesreport_custom_formats', JSON.stringify(newFormats));
   };
 
+  // Stripe Checkout へリダイレクト
+  const handleStripeCheckout = async (plan: 'basic' | 'pro') => {
+    if (!email) {
+      setError('メールアドレスが必要です');
+      return;
+    }
+    setIsCheckoutLoading(true);
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, plan }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Checkout の作成に失敗しました');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Checkout の作成に失敗しました');
+      setIsCheckoutLoading(false);
+    }
+  };
+
   const handleCopy = () => {
     navigator.clipboard.writeText(report);
     alert('クリップボードにコピーしました');
@@ -459,9 +483,13 @@ export default function Home() {
               {remaining === 0 && (
                 <p className="text-xs text-red-400 mt-2">
                   ⚠️ 今月の無料回数を使い切りました。
-                  <a href={UTAGE_REPORT_URL} target="_blank" rel="noopener noreferrer" className="underline ml-1">
+                  <button
+                    onClick={() => handleStripeCheckout('basic')}
+                    disabled={isCheckoutLoading}
+                    className="underline ml-1"
+                  >
                     アップグレード
-                  </a>
+                  </button>
                 </p>
               )}
             </div>
@@ -552,14 +580,13 @@ export default function Home() {
                         <br />
                         自社のフォーマットに合わせた日報を自動生成できます。
                       </p>
-                      <a
-                        href={UTAGE_COACHING_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-lg transition-colors"
+                      <button
+                        onClick={() => handleStripeCheckout('pro')}
+                        disabled={isCheckoutLoading}
+                        className="inline-block px-6 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-slate-600 text-white font-bold rounded-lg transition-colors"
                       >
-                        Proプランにアップグレード
-                      </a>
+                        {isCheckoutLoading ? '処理中...' : 'Proプランにアップグレード'}
+                      </button>
                     </div>
                   ) : (
                     <>
@@ -703,14 +730,13 @@ export default function Home() {
                 <li>✓ 履歴保存・検索</li>
                 <li className="text-slate-500">✗ カスタムフォーマットなし</li>
               </ul>
-              <a
-                href={UTAGE_REPORT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded transition-colors text-sm"
+              <button
+                onClick={() => handleStripeCheckout('basic')}
+                disabled={isCheckoutLoading}
+                className="block w-full text-center py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 text-slate-900 font-bold rounded transition-colors text-sm"
               >
-                7日間無料で試す
-              </a>
+                {isCheckoutLoading ? '処理中...' : '7日間無料で試す'}
+              </button>
             </div>
 
             {/* Pro（松）*/}
@@ -730,17 +756,16 @@ export default function Home() {
                 <li>✓ <strong>週次レポート自動生成</strong></li>
                 <li>✓ <strong>優先サポート</strong></li>
               </ul>
-              <a
-                href={UTAGE_COACHING_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded transition-colors text-sm"
+              <button
+                onClick={() => handleStripeCheckout('pro')}
+                disabled={isCheckoutLoading}
+                className="block w-full text-center py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-bold rounded transition-colors text-sm"
               >
-                7日間無料で試す
-              </a>
+                {isCheckoutLoading ? '処理中...' : '7日間無料で試す'}
+              </button>
             </div>
           </div>
-          
+
           <p className="text-xs text-slate-500 text-center mt-4">
             いつでもキャンセルOK・30日間満足保証
           </p>
@@ -788,14 +813,13 @@ export default function Home() {
             >
               まずは無料で試す
             </Link>
-            <a
-              href={UTAGE_COACHING_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+            <button
+              onClick={() => handleStripeCheckout('pro')}
+              disabled={isCheckoutLoading}
+              className="inline-block px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 text-slate-900 font-bold rounded-lg transition-colors"
             >
-              🎯 7日間無料トライアル
-            </a>
+              {isCheckoutLoading ? '処理中...' : '🎯 7日間無料トライアル'}
+            </button>
           </div>
         </div>
 
@@ -972,14 +996,13 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <a
-                href={UTAGE_REPORT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+              <button
+                onClick={() => handleStripeCheckout('basic')}
+                disabled={isCheckoutLoading}
+                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 text-slate-900 font-bold rounded-lg transition-colors"
               >
-                🚀 7日間無料で試す
-              </a>
+                {isCheckoutLoading ? '処理中...' : '🚀 7日間無料で試す'}
+              </button>
               <button
                 onClick={() => setShowUpgradeModal(false)}
                 className="text-slate-400 hover:text-white text-sm"
@@ -1077,14 +1100,13 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <a
-                href={UTAGE_REPORT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-lg transition-colors"
+              <button
+                onClick={() => handleStripeCheckout('basic')}
+                disabled={isCheckoutLoading}
+                className="block text-center px-6 py-3 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-600 text-slate-900 font-bold rounded-lg transition-colors"
               >
-                🚀 アップグレードする
-              </a>
+                {isCheckoutLoading ? '処理中...' : '🚀 アップグレードする'}
+              </button>
               <button
                 onClick={() => setShowLimitModal(false)}
                 className="text-slate-400 hover:text-white text-sm"
@@ -1153,14 +1175,13 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col gap-3">
-              <a
-                href={`${UTAGE_COACHING_URL}?upsell=true`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg transition-colors glow-purple"
+              <button
+                onClick={() => handleStripeCheckout('pro')}
+                disabled={isCheckoutLoading}
+                className="block text-center px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-600 disabled:to-slate-600 text-white font-bold rounded-lg transition-colors glow-purple"
               >
-                🚀 Proプランにアップグレード
-              </a>
+                {isCheckoutLoading ? '処理中...' : '🚀 Proプランにアップグレード'}
+              </button>
               <button
                 onClick={() => setShowUpsellModal(false)}
                 className="text-slate-400 hover:text-white text-sm"

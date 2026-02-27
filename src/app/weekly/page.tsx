@@ -8,12 +8,11 @@ interface DailyReport {
   content: string;
 }
 
-const UTAGE_COACHING_URL = process.env.NEXT_PUBLIC_UTAGE_COACHING_URL || '#';
-
 export default function WeeklyReportPage() {
   const [email, setEmail] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
-  const [userPlan] = useState<'free' | 'basic' | 'pro'>('free'); // TODO: 実際のプラン取得
+  const [userPlan, setUserPlan] = useState<'free' | 'basic' | 'pro'>('free');
+  const [isPlanLoading, setIsPlanLoading] = useState(false);
   const [dailyReports, setDailyReports] = useState<DailyReport[]>([
     { date: '', content: '' },
     { date: '', content: '' },
@@ -24,12 +23,37 @@ export default function WeeklyReportPage() {
   const [weeklyReport, setWeeklyReport] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('salesreport_email');
     if (savedEmail) {
       setEmail(savedEmail);
       setIsRegistered(true);
+
+      const controller = new AbortController();
+      const loadPlan = async () => {
+        setIsPlanLoading(true);
+        try {
+          const response = await fetch(`/api/usage?email=${encodeURIComponent(savedEmail)}`, {
+            signal: controller.signal,
+          });
+          const data: unknown = await response.json();
+          const raw = String((data as { plan?: unknown })?.plan || 'free').toLowerCase();
+          if (raw === 'basic') setUserPlan('basic');
+          else if (raw === 'pro' || raw === 'enterprise') setUserPlan('pro');
+          else setUserPlan('free');
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          setUserPlan('free');
+        } finally {
+          setIsPlanLoading(false);
+        }
+      };
+      void loadPlan();
+
+      return () => controller.abort();
     }
   }, []);
 
@@ -102,6 +126,31 @@ export default function WeeklyReportPage() {
     alert('クリップボードにコピーしました');
   };
 
+  const handleStripeCheckout = async (plan: 'pro') => {
+    if (!email) {
+      setCheckoutError('メールアドレスが設定されていません');
+      return;
+    }
+    setIsCheckoutLoading(true);
+    setCheckoutError('');
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, plan }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'チェックアウトの開始に失敗しました');
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'チェックアウトの開始に失敗しました');
+    } finally {
+      setIsCheckoutLoading(false);
+    }
+  };
+
   // Proプラン以外は制限
   const isPro = userPlan === 'pro';
 
@@ -157,6 +206,11 @@ export default function WeeklyReportPage() {
               登録ページへ
             </Link>
           </div>
+        ) : isPlanLoading ? (
+          <div className="bg-slate-800 rounded-xl p-8 text-center border border-slate-700">
+            <h3 className="text-xl font-semibold mb-4">⏳ プランを確認中...</h3>
+            <p className="text-slate-400">しばらくお待ちください。</p>
+          </div>
         ) : !isPro ? (
           <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl p-8 text-center border border-purple-500/30">
             <h3 className="text-2xl font-bold mb-4">👑 Proプラン限定機能</h3>
@@ -187,14 +241,18 @@ export default function WeeklyReportPage() {
               <div className="text-2xl font-bold text-purple-400">7日間無料</div>
               <div className="text-sm text-slate-400">その後 ¥9,800/月</div>
             </div>
-            <a
-              href={UTAGE_COACHING_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold rounded-lg transition-colors"
+            {checkoutError && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-300 text-sm">
+                {checkoutError}
+              </div>
+            )}
+            <button
+              onClick={() => handleStripeCheckout('pro')}
+              disabled={isCheckoutLoading}
+              className="inline-block px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-slate-600 disabled:to-slate-600 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors"
             >
-              🚀 7日間無料で試す
-            </a>
+              {isCheckoutLoading ? '処理中...' : '🚀 7日間無料で試す'}
+            </button>
           </div>
         ) : (
           <>

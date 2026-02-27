@@ -21,35 +21,21 @@ OPENAI_API_KEY=sk-your-openai-api-key
 # Supabase（メール登録・使用回数管理）
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 
-# Utage決済ページURL（7日間無料トライアル）
-NEXT_PUBLIC_UTAGE_REPORT_URL=https://your-utage-url.com/p/日報AI決済ページ
-NEXT_PUBLIC_UTAGE_COACHING_URL=https://your-utage-url.com/p/営業コーチングAI決済ページ
+# Stripe（サブスク決済）
+STRIPE_SECRET_KEY=sk_live_or_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_PRICE_BASIC_MONTHLY=price_xxx
+STRIPE_PRICE_PRO_MONTHLY=price_xxx
 
-# Utage Webhook（オプション：メールリスト連携）
-UTAGE_WEBHOOK_URL=https://your-utage-webhook-url
+# 公開URL（任意）
+NEXT_PUBLIC_BASE_URL=https://your-domain.example
 ```
 
 ### 3. Supabaseのテーブル作成
 
-SupabaseのSQL Editorで以下を実行：
-
-```sql
-CREATE TABLE users (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  usage_count INTEGER DEFAULT 0,
-  last_reset TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLSを有効化
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-
--- 匿名ユーザーの読み書きを許可
-CREATE POLICY "Allow anonymous access" ON users
-  FOR ALL USING (true);
-```
+`SETUP_GUIDE.md` のSQL（`salesreport_users` / `salesreport_history`）をSupabaseのSQL Editorで実行してください。
 
 ### 3. 開発サーバーの起動
 
@@ -67,7 +53,7 @@ http://localhost:3000 でアクセス
 - **スタイリング**: Tailwind CSS
 - **AI**: OpenAI GPT-4o-mini
 - **認証**: Supabase Auth（予定）
-- **決済**: Stripe（予定）
+- **決済**: Stripe
 - **ホスティング**: Vercel
 
 ---
@@ -77,7 +63,7 @@ http://localhost:3000 でアクセス
 ### 日報AI
 | プラン | 価格 | 内容 |
 |--------|------|------|
-| Free | ¥0 | 月5回まで |
+| Free | ¥0 | 月3回まで |
 | Basic | 7日間無料 → ¥980/月 | 無制限 |
 
 ### 営業コーチングAI
@@ -85,8 +71,6 @@ http://localhost:3000 でアクセス
 |--------|------|------|
 | 無料体験 | ¥0 | 月3回まで |
 | Pro | 7日間無料 → ¥9,800/月 | 無制限 + 週次レポート |
-
-※決済はUtage経由
 
 ---
 
@@ -111,6 +95,5 @@ salesreport-ai/
 ## 🔧 今後の実装予定
 
 - [ ] Supabase認証
-- [ ] Stripe決済
 - [ ] 週報自動生成
 - [ ] Slack連携
