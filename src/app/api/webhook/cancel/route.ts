@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     console.log('Cancel webhook received:', { email, product_name, reason });
 
     // Supabaseでユーザーのプランをfreeに戻す
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('salesreport_users')
       .update({
         plan: 'free',

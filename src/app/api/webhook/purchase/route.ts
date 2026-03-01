@@ -17,7 +17,6 @@ export async function POST(request: NextRequest) {
       email,
       name,
       product_name,
-      product_id,
       amount,
       transaction_id,
     } = body;
@@ -36,7 +35,7 @@ export async function POST(request: NextRequest) {
     const isAnnual = product_name?.includes('年額') || amount >= 9800 && !product_name?.includes('Pro');
 
     // Supabaseにユーザー情報を保存/更新
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('salesreport_users')
       .upsert({
         email,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getUsageCount, incrementUsage, isEmailVerified, getUserDashboard, updateStreak, updateSalesScore } from '@/lib/supabase';
+import { getUsageCount, incrementUsage, getUserDashboard, updateStreak, updateSalesScore } from '@/lib/supabase';
 
 const FREE_LIMIT = 3;
 
