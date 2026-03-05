@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { buildSessionCookie, normalizeEmail } from '@/lib/api-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,7 +36,8 @@ async function sendVerificationEmail(email: string, code: string) {
 // 確認コード送信
 export async function POST(request: NextRequest) {
   try {
-    const { email, action } = await request.json();
+    const { email: rawEmail, action } = await request.json();
+    const email = normalizeEmail(String(rawEmail || ''));
 
     if (!email) {
       return NextResponse.json(
@@ -95,7 +97,8 @@ export async function POST(request: NextRequest) {
 // 確認コード検証
 export async function PUT(request: NextRequest) {
   try {
-    const { email, code } = await request.json();
+    const { email: rawEmail, code } = await request.json();
+    const email = normalizeEmail(String(rawEmail || ''));
 
     if (!email || !code) {
       return NextResponse.json(
@@ -145,10 +148,12 @@ export async function PUT(request: NextRequest) {
       })
       .eq('email', email);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Email verified successfully',
     });
+    response.cookies.set(buildSessionCookie(email));
+    return response;
   } catch (error) {
     console.error('Verification error:', error);
     return NextResponse.json(

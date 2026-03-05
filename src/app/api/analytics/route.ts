@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getAdminEmailAllowlist, isInternalApiKeyValid, requireSessionEmail } from '@/lib/api-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,6 +44,19 @@ function calculateLTV(user: {
 
 export async function GET(request: NextRequest) {
   try {
+    const hasInternalApiKey = isInternalApiKeyValid(request);
+    if (!hasInternalApiKey) {
+      const session = await requireSessionEmail();
+      if (!session.ok) {
+        return session.response;
+      }
+
+      const allowlist = getAdminEmailAllowlist();
+      if (allowlist.size > 0 && !allowlist.has(session.email)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'overview';
 

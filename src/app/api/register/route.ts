@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerUser, getUsageCount, isEmailVerified, getReferralCode } from '@/lib/supabase';
+import { buildSessionCookie, normalizeEmail } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, source, referralCode } = await req.json();
+    const { email: rawEmail, source, referralCode } = await req.json();
+    const email = normalizeEmail(String(rawEmail || ''));
 
     if (!email || !email.includes('@')) {
       return NextResponse.json(
@@ -74,7 +76,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       isNew: result.isNew,
       usageCount,
@@ -90,6 +92,8 @@ export async function POST(req: NextRequest) {
           ? 'おかえりなさい！' 
           : '認証コードをメールに再送信しました。',
     });
+    response.cookies.set(buildSessionCookie(email));
+    return response;
 
   } catch (error) {
     console.error('Registration error:', error);

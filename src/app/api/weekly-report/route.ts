@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { requireSessionEmail } from '@/lib/api-auth';
 
 // OpenAIクライアントを遅延初期化
 function getOpenAIClient() {
@@ -50,6 +51,11 @@ const WEEKLY_REPORT_PROMPT = `あなたは営業マネージャーのアシス�
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { dailyReports } = await req.json();
 
     if (!dailyReports || !Array.isArray(dailyReports) || dailyReports.length === 0) {

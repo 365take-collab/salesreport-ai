@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsageCount, incrementUsage, getUserDashboard, updateStreak, updateSalesScore } from '@/lib/supabase';
+import { ensureSessionEmailMatch, requireSessionEmail } from '@/lib/api-auth';
 
 const FREE_LIMIT = 3;
 
 // 使用回数を取得（ダッシュボードデータ含む）
 export async function GET(req: NextRequest) {
   try {
-    const email = req.nextUrl.searchParams.get('email');
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'メールアドレスが必要です' },
-        { status: 400 }
-      );
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
     }
+    const requestedEmail = req.nextUrl.searchParams.get('email');
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const email = session.email;
 
     // Supabaseが設定されていない場合
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -57,14 +59,15 @@ export async function GET(req: NextRequest) {
 // 使用回数をインクリメント（ストリークとスコアも更新）
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
-
-    if (!email) {
-      return NextResponse.json(
-        { error: 'メールアドレスが必要です' },
-        { status: 400 }
-      );
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
     }
+    const { email: requestedEmail } = await req.json();
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const email = session.email;
 
     // Supabaseが設定されていない場合
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

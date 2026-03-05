@@ -5,17 +5,24 @@ import {
   getReferralHistory,
   generateReferralLink 
 } from '@/lib/supabase';
+import { ensureSessionEmailMatch, requireSessionEmail } from '@/lib/api-auth';
 
 // GET: 紹介コード・紹介リンク・紹介履歴を取得
 export async function GET(request: NextRequest) {
   try {
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
+    const requestedEmail = searchParams.get('email');
     const action = searchParams.get('action');
 
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const email = session.email;
 
     // 紹介コードを取得
     const referralCode = await getReferralCode(email);

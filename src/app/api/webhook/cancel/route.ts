@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyHmacSha256Signature } from '@/lib/webhook-signature';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,7 +9,34 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-utage-signature');
+    const timestamp = request.headers.get('x-utage-timestamp');
+    const secret = process.env.UTAGE_WEBHOOK_SECRET;
+
+    if (!secret) {
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Webhook secret is not configured' }, { status: 500 });
+      }
+      console.warn('UTAGE_WEBHOOK_SECRET is not configured. Skipping signature check in non-production.');
+    } else {
+      if (!signature) {
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      }
+
+      const isValid = verifyHmacSha256Signature({
+        rawBody,
+        secret,
+        signature,
+        timestamp,
+      });
+
+      if (!isValid) {
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     
     // Utageから送られてくるデータ
     const {

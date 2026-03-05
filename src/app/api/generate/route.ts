@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { requireSessionEmail } from '@/lib/api-auth';
 
 // OpenAIクライアントを遅延初期化
 function getOpenAIClient() {
@@ -165,6 +166,11 @@ const PROMPTS = {
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { input, format, customPrompt } = await req.json();
 
     if (!input) {

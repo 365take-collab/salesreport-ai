@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { ensureSessionEmailMatch, requireSessionEmail } from '@/lib/api-auth';
 
 // 履歴を取得
 export async function GET(req: NextRequest) {
   try {
-    const email = req.nextUrl.searchParams.get('email');
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
+
+    const requestedEmail = req.nextUrl.searchParams.get('email');
     const limit = parseInt(req.nextUrl.searchParams.get('limit') || '20');
     const offset = parseInt(req.nextUrl.searchParams.get('offset') || '0');
 
-    if (!email) {
-      return NextResponse.json(
-        { error: 'メールアドレスが必要です' },
-        { status: 400 }
-      );
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const email = session.email;
 
     // Supabaseが設定されていない場合
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -56,14 +60,23 @@ export async function GET(req: NextRequest) {
 // 履歴を保存
 export async function POST(req: NextRequest) {
   try {
-    const { email, input, output, format, type } = await req.json();
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
 
-    if (!email || !output) {
+    const { email: requestedEmail, input, output, format, type } = await req.json();
+
+    if (!output) {
       return NextResponse.json(
         { error: '必要なデータが不足しています' },
         { status: 400 }
       );
     }
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const email = session.email;
 
     // Supabaseが設定されていない場合
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -111,15 +124,24 @@ export async function POST(req: NextRequest) {
 // 履歴を削除
 export async function DELETE(req: NextRequest) {
   try {
-    const id = req.nextUrl.searchParams.get('id');
-    const email = req.nextUrl.searchParams.get('email');
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
 
-    if (!id || !email) {
+    const id = req.nextUrl.searchParams.get('id');
+    const requestedEmail = req.nextUrl.searchParams.get('email');
+
+    if (!id) {
       return NextResponse.json(
-        { error: 'IDとメールアドレスが必要です' },
+        { error: 'IDが必要です' },
         { status: 400 }
       );
     }
+    if (!ensureSessionEmailMatch(session.email, requestedEmail)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const email = session.email;
 
     // Supabaseが設定されていない場合
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {

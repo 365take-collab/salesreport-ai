@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { requireSessionEmail } from '@/lib/api-auth';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -114,6 +115,11 @@ JSONのみを出力してください。説明文は不要です。`;
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await requireSessionEmail();
+    if (!session.ok) {
+      return session.response;
+    }
+
     const { transcript } = await req.json();
 
     if (!transcript) {
