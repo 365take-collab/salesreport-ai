@@ -45,13 +45,20 @@ function calculateLTV(user: {
 export async function GET(request: NextRequest) {
   try {
     const hasInternalApiKey = isInternalApiKeyValid(request);
+    const allowlist = getAdminEmailAllowlist();
+    if (process.env.NODE_ENV === 'production' && !hasInternalApiKey && allowlist.size === 0) {
+      return NextResponse.json(
+        { error: 'Analytics admin auth is not configured' },
+        { status: 503 }
+      );
+    }
+
     if (!hasInternalApiKey) {
       const session = await requireSessionEmail();
       if (!session.ok) {
         return session.response;
       }
 
-      const allowlist = getAdminEmailAllowlist();
       if (allowlist.size > 0 && !allowlist.has(session.email)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }

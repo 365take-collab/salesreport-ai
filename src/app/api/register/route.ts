@@ -16,13 +16,15 @@ export async function POST(req: NextRequest) {
 
     // Supabaseが設定されていない場合はスキップ
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         isNew: true,
         usageCount: 0,
         needsVerification: false,
         message: 'メールアドレスを登録しました（テストモード）',
       });
+      response.cookies.set(buildSessionCookie(email));
+      return response;
     }
 
     const result = await registerUser(email, referralCode);
