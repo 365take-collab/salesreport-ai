@@ -43,3 +43,8 @@ next-env.d.ts
 .env
 .env.*
 !.env.example
+
+# Environment variables
+.env.local
+.env.*.local
+!.env.local.example
