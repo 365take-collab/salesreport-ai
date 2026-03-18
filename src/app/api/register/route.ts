@@ -78,6 +78,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const shouldCreateSession = !result.needsVerification || verified;
+
     const response = NextResponse.json({
       success: true,
       isNew: result.isNew,
@@ -94,7 +96,9 @@ export async function POST(req: NextRequest) {
           ? 'おかえりなさい！' 
           : '認証コードをメールに再送信しました。',
     });
-    response.cookies.set(buildSessionCookie(email));
+    if (shouldCreateSession) {
+      response.cookies.set(buildSessionCookie(email));
+    }
     return response;
 
   } catch (error) {
