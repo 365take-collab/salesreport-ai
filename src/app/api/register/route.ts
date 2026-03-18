@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerUser, getUsageCount, isEmailVerified, getReferralCode } from '@/lib/supabase';
-import { buildSessionCookie, normalizeEmail } from '@/lib/api-auth';
+import { buildSessionCookie, clearSessionCookie, normalizeEmail } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -98,6 +98,8 @@ export async function POST(req: NextRequest) {
     });
     if (shouldCreateSession) {
       response.cookies.set(buildSessionCookie(email));
+    } else {
+      response.cookies.set(clearSessionCookie());
     }
     return response;
 
