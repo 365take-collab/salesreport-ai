@@ -21,7 +21,7 @@ export default function LegalPage() {
             <tbody className="divide-y divide-slate-700">
               <tr>
                 <td className="py-4 pr-4 text-slate-400 align-top w-1/3">販売業者</td>
-                <td className="py-4 text-white">LaunchX</td>
+                <td className="py-4 text-white">合同会社LaunchX</td>
               </tr>
               <tr>
                 <td className="py-4 pr-4 text-slate-400 align-top">運営責任者</td>
@@ -30,15 +30,14 @@ export default function LegalPage() {
               <tr>
                 <td className="py-4 pr-4 text-slate-400 align-top">所在地</td>
                 <td className="py-4 text-white">
-                  〒160-0022<br />
-                  東京都新宿区新宿 1-36-2<br />
-                  新宿第七葉山ビル 3F
+                  〒150-0043<br />
+                  東京都渋谷区道玄坂1丁目10番8号渋谷道玄坂東急ビル2F-C
                 </td>
               </tr>
               <tr>
                 <td className="py-4 pr-4 text-slate-400 align-top">電話番号</td>
                 <td className="py-4 text-white">
-                  請求があれば遅滞なく開示いたします。<br />
+                  050-1793-9106<br />
                   <span className="text-slate-400 text-sm">※お問い合わせはメールにてお願いいたします</span>
                 </td>
               </tr>
