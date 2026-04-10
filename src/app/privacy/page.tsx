@@ -108,7 +108,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-white mb-4">お問い合わせ</h2>
             <p>個人情報の取り扱いに関するお問い合わせ：</p>
             <p className="mt-2">LaunchX</p>
-            <p>メール: support@launchx.jp</p>
+            <p>メール: hi@launchx.jp</p>
           </section>
         </div>
       </main>
