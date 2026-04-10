@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { registerUser, getUsageCount, isEmailVerified, getReferralCode } from '@/lib/supabase';
-import { buildSessionCookie, normalizeEmail } from '@/lib/api-auth';
+import { buildSessionCookie, clearSessionCookie, normalizeEmail } from '@/lib/api-auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,13 +16,15 @@ export async function POST(req: NextRequest) {
 
     // Supabaseが設定されていない場合はスキップ
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         isNew: true,
         usageCount: 0,
         needsVerification: false,
         message: 'メールアドレスを登録しました（テストモード）',
       });
+      response.cookies.set(buildSessionCookie(email));
+      return response;
     }
 
     const result = await registerUser(email, referralCode);
@@ -76,6 +78,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const shouldCreateSession = !result.needsVerification || verified;
+
     const response = NextResponse.json({
       success: true,
       isNew: result.isNew,
@@ -92,7 +96,11 @@ export async function POST(req: NextRequest) {
           ? 'おかえりなさい！' 
           : '認証コードをメールに再送信しました。',
     });
-    response.cookies.set(buildSessionCookie(email));
+    if (shouldCreateSession) {
+      response.cookies.set(buildSessionCookie(email));
+    } else {
+      response.cookies.set(clearSessionCookie());
+    }
     return response;
 
   } catch (error) {

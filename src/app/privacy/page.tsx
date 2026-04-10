@@ -60,10 +60,10 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-white mt-8 mb-4">4. 外部サービスとの連携</h2>
             <p>本サービスは、以下の外部サービスを利用しています：</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li><strong>OpenAI</strong>：AI機能の提供（入力データはOpenAIのAPIに送信されます）</li>
-              <li><strong>Supabase</strong>：データベース・認証サービス</li>
-              <li><strong>Stripe</strong>：決済処理</li>
-              <li><strong>Vercel</strong>：ホスティングサービス</li>
+              <li><strong>外部AIサービス</strong>：AI機能の提供（入力データは外部AIサービスのAPIに送信されます）</li>
+              <li><strong>外部データベースサービス</strong>：データベース・認証サービス</li>
+              <li><strong>外部決済事業者</strong>：決済処理</li>
+              <li><strong>外部ホスティングサービス</strong>：ホスティングサービス</li>
             </ul>
             <p className="mt-2">各サービスのプライバシーポリシーについては、各社のウェブサイトをご確認ください。</p>
           </section>
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-bold text-white mb-4">お問い合わせ</h2>
             <p>個人情報の取り扱いに関するお問い合わせ：</p>
             <p className="mt-2">LaunchX</p>
-            <p>メール: support@launchx.jp</p>
+            <p>メール: hi@launchx.jp</p>
           </section>
         </div>
       </main>
