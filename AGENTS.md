@@ -1,84 +1,41 @@
 日本語で返答する。
 
-## 共通ルール
-/Users/kawamuratakeshi/.shared-agent-rules/SHARED-RULES.md の内容に従うこと。
-
-## プロジェクト固有
-- プロジェクト名: salesreport-ai
-- 技術スタック: Next.js 16 + TypeScript + Supabase
-- メインDB: Supabase (PostgreSQL)
+## Quick Start
+- 共通ルールは `/Users/kawamuratakeshi/.shared-agent-rules/SHARED-RULES.md` を優先する
+- まず `/Users/kawamuratakeshi/apps/salesreport-ai/WORKING_PLAN.md` を確認する
+- UI 依頼でも先に型、state、Supabase 境界、API contract を固める
 
 ## Repo Layout
+- `src/`: Next.js App Router / TypeScript 実装
+- `supabase/`: migration と RLS
+- `public/`: 静的アセット
 
-- .env.example
-- .env.local
-- .git/
-- .gitignore
-- .next/
-- .vercel/
-- README.md
-- SETUP_GUIDE.md
-- UTAGE_SETUP.md
-- WORKING_PLAN.md
-- eslint.config.mjs
-- next-env.d.ts
-- next.config.ts
-- node_modules/
-- package-lock.json
-- package.json
-- postcss.config.mjs
-- public/
-- src/
-- supabase/
-- tsconfig.json
-- tsconfig.tsbuildinfo
-- vercel.json
-- 中間生成物/
+## Important Files
+- `/Users/kawamuratakeshi/apps/salesreport-ai/WORKING_PLAN.md`
+- `/Users/kawamuratakeshi/apps/salesreport-ai/package.json`
+- `/Users/kawamuratakeshi/apps/salesreport-ai/next.config.ts`
+- `/Users/kawamuratakeshi/apps/salesreport-ai/eslint.config.mjs`
 
-## Build / Test / Lint Commands
+## Repo Rules
+- Next.js 16 + TypeScript + Supabase 前提を崩さない
+- import path は `@/` を優先する
+- API を触る場合は認証・認可・入力検証を維持する
+- Codex 担当は `supabase/` の migration / RLS。`*.css` `*.scss` は参照のみ
 
-- build: npm run build
-- test: # TODO: 手動設定要
-- lint: npm run lint
-- typecheck: # TODO: 手動設定要
+## Verify Work
+- `npm run build`
+- `npm run lint`
+- `test` / `typecheck` は未整備のため、必要な代替確認を報告に残す
 
-## Review guidelines
+## Done Means
+- 少なくとも `npm run lint` が通るか、未実行理由が明記されている
+- Supabase schema、RLS、API contract の整合が崩れていない
 
-### Scope: blocking issues only
-- Do NOT flag naming, formatting, missing comments, or stylistic preferences
-- Only flag issues that cause security vulnerabilities, data loss, or production outages
+## Review Focus
+- blocking issue only: security vulnerability、data loss、production outage を優先
+- hardcoded return、stub 実装、test-only branch、`as any`、`it.skip` / `it.only`、assertion 弱化、coverage 低下、`continue-on-error` は常に確認
+- 入力検証不足、認証/認可漏れ、secret 直書き、新規テーブルの RLS 漏れを優先して見る
 
-### Prohibited patterns (always flag)
-- Hardcoded return values (dictionary/map lookup instead of real logic)
-- Stub implementations (returning null, empty arrays, or placeholder data)
-- Test-only branches (if/switch handling only known test case values)
-- Excessive type casting (`as any`, `as never`, `as unknown`)
-- Committed `it.skip()` or `it.only()`
-- Assertion removal or weakening
-- Coverage threshold reduction
-- Adding `continue-on-error: true`
-
-### Security checks (always flag)
-- Missing input validation (SQL injection, XSS, command injection)
-- Missing authentication or authorization checks
-- Hardcoded secrets (API keys, tokens, passwords)
-- Missing Supabase RLS policies on new tables
-
-### Project conventions (flag if violated)
-- Import paths must use `@/` prefix (TypeScript/Next.js projects)
-- API endpoints must apply authentication middleware
-- Type definitions must match between API and frontend
-- Python projects: type hints required on public functions
-
-## Done-When
-
-- lint通過
-
-## Constraints
-
-### Codex担当範囲
-- supabase/ ... マイグレーション・RLS
-
-### Codexが編集しないファイル（参照のみ可）
-以下はClaude Codeの担当。Codexは読み取り参照のみ:
-- *.css, *.scss ... スタイルシート
+## Related Docs
+- `/Users/kawamuratakeshi/.shared-agent-rules/SHARED-RULES.md`
+- `/Users/kawamuratakeshi/apps/salesreport-ai/WORKING_PLAN.md`

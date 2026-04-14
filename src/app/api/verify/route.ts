@@ -3,10 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { buildSessionCookie, normalizeEmail } from '@/lib/api-auth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase admin env is not configured.');
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 // 確認コード生成
 function generateCode(): string {
@@ -36,6 +42,7 @@ async function sendVerificationEmail(email: string, code: string) {
 // 確認コード送信
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
     const { email: rawEmail, action } = await request.json();
     const email = normalizeEmail(String(rawEmail || ''));
 
@@ -97,6 +104,7 @@ export async function POST(request: NextRequest) {
 // 確認コード検証
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
     const { email: rawEmail, code } = await request.json();
     const email = normalizeEmail(String(rawEmail || ''));
 

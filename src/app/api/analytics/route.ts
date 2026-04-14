@@ -2,10 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getAdminEmailAllowlist, isInternalApiKeyValid, requireSessionEmail } from '@/lib/api-auth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase admin env is not configured.');
+  }
+
+  return createClient(supabaseUrl, serviceRoleKey);
+}
 
 // LTV計算ロジック
 function calculateLTV(user: {
@@ -44,6 +50,7 @@ function calculateLTV(user: {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseAdmin();
     const hasInternalApiKey = isInternalApiKeyValid(request);
     const allowlist = getAdminEmailAllowlist();
     if (process.env.NODE_ENV === 'production' && !hasInternalApiKey && allowlist.size === 0) {

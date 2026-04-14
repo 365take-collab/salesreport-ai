@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { ensureSessionEmailMatch, requireSessionEmail } from '@/lib/api-auth';
 
+function getSupabaseClient() {
+  return supabase as any;
+}
+
 // 履歴を取得
 export async function GET(req: NextRequest) {
   try {
@@ -28,7 +32,9 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const { data, error, count } = await supabase
+    const supabaseClient = getSupabaseClient();
+
+    const { data, error, count } = await supabaseClient
       .from('salesreport_history')
       .select('*', { count: 'exact' })
       .eq('email', email)
@@ -86,7 +92,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { data, error } = await supabase
+    const supabaseClient = getSupabaseClient();
+
+    const { data, error } = await supabaseClient
       .from('salesreport_history')
       .insert({
         email,
@@ -151,7 +159,9 @@ export async function DELETE(req: NextRequest) {
       });
     }
 
-    const { error } = await supabase
+    const supabaseClient = getSupabaseClient();
+
+    const { error } = await supabaseClient
       .from('salesreport_history')
       .delete()
       .eq('id', id)

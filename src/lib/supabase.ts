@@ -3,7 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function createSupabaseBrowserClient() {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase client env is not configured.');
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+}
+
+export const supabase: any = new Proxy({} as ReturnType<typeof createClient>, {
+  get(_target, property, receiver) {
+    return Reflect.get(createSupabaseBrowserClient(), property, receiver);
+  },
+});
 
 // 6桁の認証コードを生成
 export function generateVerificationCode(): string {
@@ -510,7 +522,7 @@ export async function getReferralHistory(email: string): Promise<{
     .single();
 
   return {
-    referrals: (referrals || []).map(r => ({
+    referrals: (referrals || []).map((r: any) => ({
       email: r.referred_email.replace(/(.{3}).*(@.*)/, '$1***$2'), // メールをマスク
       status: r.status,
       createdAt: r.created_at,
